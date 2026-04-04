@@ -6,6 +6,17 @@ Versioning follows [Semantic Versioning](https://semver.org)
 
 ---
 
+## [0.3.0] — 2026-04-04
+
+### CLI output fixes
+
+- All command hints in CLI output now show the full
+  `npx @shaifulshabuj-waymarks/cli <cmd>` form —
+  works correctly whether Waymark is installed
+  globally or invoked via npx
+
+---
+
 ## [0.2.0] — 2026-04-04
 
 ### Background daemon mode

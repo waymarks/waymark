@@ -11,7 +11,7 @@ export async function run(): Promise<void> {
   const pidFile = path.join(process.cwd(), '.waymark', 'waymark.pid');
 
   if (!fs.existsSync(pidFile)) {
-    console.log('Waymark is not running. Start with: waymark start');
+    console.log('Waymark is not running. Start with: npx @shaifulshabuj-waymarks/cli start');
     return;
   }
 
@@ -19,13 +19,13 @@ export async function run(): Promise<void> {
   try {
     saved = JSON.parse(fs.readFileSync(pidFile, 'utf8'));
   } catch {
-    console.log('Waymark is not running. Start with: waymark start');
+    console.log('Waymark is not running. Start with: npx @shaifulshabuj-waymarks/cli start');
     return;
   }
 
   if (!isAlive(saved.api) && !isAlive(saved.mcp)) {
     fs.unlinkSync(pidFile);
-    console.log('Waymark is not running (crashed). Start with: waymark start');
+    console.log('Waymark is not running (crashed). Start with: npx @shaifulshabuj-waymarks/cli start');
     return;
   }
 
@@ -47,6 +47,6 @@ export async function run(): Promise<void> {
     console.log(`Pending approvals:    ${pending}`);
     console.log(`Total actions logged: ${total}`);
   } catch {
-    console.log('Waymark is not running. Start with: waymark start');
+    console.log('Waymark is not running. Start with: npx @shaifulshabuj-waymarks/cli start');
   }
 }

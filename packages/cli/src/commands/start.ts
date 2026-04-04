@@ -33,7 +33,7 @@ export function run(): void {
   const pidFile = path.join(waymarkDir, 'waymark.pid');
 
   if (!fs.existsSync(configPath)) {
-    console.error('waymark.config.json not found. Run waymark init first.');
+    console.error('waymark.config.json not found. Run: npx @shaifulshabuj-waymarks/cli init');
     process.exit(1);
   }
 
@@ -44,7 +44,7 @@ export function run(): void {
       if (isAlive(saved.api) || isAlive(saved.mcp)) {
         console.log('Waymark is already running.');
         console.log('Dashboard:  http://localhost:3001');
-        console.log('Run "waymark stop" to stop it.');
+        console.log('Run "npx @shaifulshabuj-waymarks/cli stop" to stop it.');
         process.exit(0);
       }
     } catch {
@@ -85,6 +85,6 @@ export function run(): void {
     console.log('Waymark started (background)');
     console.log('Dashboard:  http://localhost:3001');
     console.log('MCP server: active (stdio)');
-    console.log('Run "waymark stop" to stop.');
+    console.log('Run "npx @shaifulshabuj-waymarks/cli stop" to stop.');
   }, 1500);
 }

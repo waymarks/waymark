@@ -33,7 +33,7 @@ export async function run(): Promise<void> {
     if (!res.ok) throw new Error('Bad response');
     rows = await res.json() as any[];
   } catch {
-    console.log('Waymark is not running. Start with: waymark start');
+    console.log('Waymark is not running. Start with: npx @shaifulshabuj-waymarks/cli start');
     return;
   }
 
