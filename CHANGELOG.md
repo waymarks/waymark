@@ -6,6 +6,16 @@ Versioning follows [Semantic Versioning](https://semver.org)
 
 ---
 
+## [0.2.0] — 2026-04-04
+
+### Background daemon mode
+
+- `waymark start` now runs servers in the background and returns to prompt immediately — closing the terminal no longer stops Waymark
+- Added `waymark stop` command for clean shutdown
+- `waymark status` now detects crashed servers and cleans up stale PID files automatically
+
+---
+
 ## [0.1.0] — 2026-04-04
 
 ### First public release

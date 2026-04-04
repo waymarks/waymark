@@ -9,6 +9,9 @@ switch (command) {
   case 'start':
     require('./commands/start').run();
     break;
+  case 'stop':
+    require('./commands/stop').run();
+    break;
   case 'status':
     require('./commands/status').run();
     break;
@@ -16,11 +19,12 @@ switch (command) {
     require('./commands/logs').run();
     break;
   default:
-    console.log('Usage: waymark <init|start|status|logs>');
+    console.log('Usage: waymark <init|start|stop|status|logs>');
     console.log('');
     console.log('Commands:');
     console.log('  init    Set up Waymark in the current project');
     console.log('  start   Start the Waymark dashboard and MCP server');
+    console.log('  stop    Stop the running Waymark servers');
     console.log('  status  Show current Waymark status and pending count');
     console.log('  logs    Show recent action log');
     process.exit(command ? 1 : 0);
