@@ -37,8 +37,8 @@ Waymark intercepts every action before it runs:
 
 ```bash
 cd your-project
-npx @waymark/cli init
-npx @waymark/cli start
+npx @shaifulshabuj-waymarks/cli init
+npx @shaifulshabuj-waymarks/cli start
 ```
 
 Restart Claude Code. Done.

@@ -29,7 +29,7 @@ Versioning follows [Semantic Versioning](https://semver.org)
   with full context and agent reasoning
 
 #### Developer Experience
-- npx @waymark/cli init — one command project setup
+- npx @shaifulshabuj-waymarks/cli init — one command project setup
 - Auto-generates waymark.config.json
 - Auto-generates CLAUDE.md for always-on
   Claude Code activation

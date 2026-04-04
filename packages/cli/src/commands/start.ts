@@ -5,7 +5,7 @@ import { spawn, execSync } from 'child_process';
 function resolveServerBin(name: 'mcp' | 'api'): string {
   const file = name === 'mcp' ? 'mcp/server.js' : 'api/server.js';
   try {
-    return require.resolve(`@waymark/server/dist/${file}`);
+    return require.resolve(`@shaifulshabuj-waymarks/server/dist/${file}`);
   } catch {
     return path.resolve(__dirname, `../../../server/dist/${file}`);
   }

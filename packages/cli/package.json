@@ -1,5 +1,5 @@
 {
-  "name": "@waymark/cli",
+  "name": "@shaifulshabuj-waymarks/cli",
   "version": "0.1.0",
   "description": "Control what AI agents can do in your codebase",
   "author": "Waymark <hello@waymarks.dev>",
@@ -31,7 +31,7 @@
     "build": "tsc"
   },
   "dependencies": {
-    "@waymark/server": "0.1.0"
+    "@shaifulshabuj-waymarks/server": "0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.5",

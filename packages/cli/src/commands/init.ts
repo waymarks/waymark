@@ -80,9 +80,9 @@ function getClaudeDesktopConfigPath(): string {
 }
 
 function resolveServerBin(): string {
-  // Try installed @waymark/server package
+  // Try installed @shaifulshabuj-waymarks/server package
   try {
-    return require.resolve('@waymark/server/dist/mcp/server.js');
+    return require.resolve('@shaifulshabuj-waymarks/server/dist/mcp/server.js');
   } catch {
     // Fallback: assume we're inside the waymark monorepo
     return path.resolve(__dirname, '../../../server/dist/mcp/server.js');
@@ -100,24 +100,24 @@ export async function run(): Promise<void> {
     console.warn('Warning: No package.json or .git found. Continuing anyway.');
   }
 
-  // Step 2 — Install @waymark/server (skip if already resolvable or in monorepo)
+  // Step 2 — Install @shaifulshabuj-waymarks/server (skip if already resolvable or in monorepo)
   let serverBin: string;
   try {
-    serverBin = require.resolve('@waymark/server/dist/mcp/server.js');
-    console.log('✓ @waymark/server already installed');
+    serverBin = require.resolve('@shaifulshabuj-waymarks/server/dist/mcp/server.js');
+    console.log('✓ @shaifulshabuj-waymarks/server already installed');
   } catch {
     const monorepoFallback = path.resolve(__dirname, '../../../server/dist/mcp/server.js');
     if (fs.existsSync(monorepoFallback)) {
       serverBin = monorepoFallback;
-      console.log('✓ Using local @waymark/server (monorepo)');
+      console.log('✓ Using local @shaifulshabuj-waymarks/server (monorepo)');
     } else {
-      console.log('Installing @waymark/server...');
-      const result = spawnSync('npm', ['install', '--save-dev', '@waymark/server'], {
+      console.log('Installing @shaifulshabuj-waymarks/server...');
+      const result = spawnSync('npm', ['install', '--save-dev', '@shaifulshabuj-waymarks/server'], {
         stdio: 'inherit',
         cwd: projectRoot
       });
       if (result.status !== 0) {
-        console.error('Failed to install @waymark/server');
+        console.error('Failed to install @shaifulshabuj-waymarks/server');
         process.exit(1);
       }
       serverBin = resolveServerBin();
@@ -227,7 +227,7 @@ export async function run(): Promise<void> {
   console.log('│  1. Restart Claude Code             │');
   console.log('│  2. Open this project in Claude     │');
   console.log('│  3. View dashboard:                 │');
-  console.log('│     npx @waymark/cli start          │');
+  console.log('│npx @shaifulshabuj-waymarks/cli start│');
   console.log('│     http://localhost:3001           │');
   console.log('│                                     │');
   console.log('│  Waymark is now always-on in        │');
