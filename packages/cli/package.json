@@ -1,0 +1,40 @@
+{
+  "name": "@waymark/cli",
+  "version": "0.1.0",
+  "description": "Control what AI agents can do in your codebase",
+  "author": "Waymark <hello@waymarks.dev>",
+  "license": "MIT",
+  "homepage": "https://github.com/waymarks/waymark",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/waymarks/waymark.git"
+  },
+  "bugs": {
+    "url": "https://github.com/waymarks/waymark/issues"
+  },
+  "keywords": [
+    "ai-agents",
+    "claude-code",
+    "mcp",
+    "security",
+    "developer-tools",
+    "llm",
+    "agent-control"
+  ],
+  "bin": {
+    "waymark": "./dist/index.js"
+  },
+  "files": [
+    "dist/**"
+  ],
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@waymark/server": "0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "typescript": "^5.3.3"
+  }
+}
