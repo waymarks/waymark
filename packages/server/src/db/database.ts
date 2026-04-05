@@ -47,6 +47,11 @@ try { db.exec('ALTER TABLE action_log ADD COLUMN approved_by TEXT'); } catch {}
 try { db.exec('ALTER TABLE action_log ADD COLUMN rejected_at TEXT'); } catch {}
 try { db.exec('ALTER TABLE action_log ADD COLUMN rejected_reason TEXT'); } catch {}
 
+// Indexes for query performance
+try { db.exec('CREATE INDEX IF NOT EXISTS idx_action_id ON action_log(action_id)'); } catch {}
+try { db.exec('CREATE INDEX IF NOT EXISTS idx_status ON action_log(status)'); } catch {}
+try { db.exec('CREATE INDEX IF NOT EXISTS idx_session_id ON action_log(session_id)'); } catch {}
+
 export interface ActionRow {
   id: number;
   action_id: string;
@@ -117,7 +122,7 @@ export function insertAction(params: InsertActionParams): void {
     input_payload: params.input_payload,
     before_snapshot: params.before_snapshot ?? null,
     status: params.status,
-    decision: params.decision ?? 'allow',
+    decision: params.decision ?? 'pending',
     policy_reason: params.policy_reason ?? null,
     matched_rule: params.matched_rule ?? null,
   });

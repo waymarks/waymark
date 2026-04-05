@@ -6,6 +6,29 @@ Versioning follows [Semantic Versioning](https://semver.org)
 
 ---
 
+## [0.4.0] — 2026-04-04
+
+### Fixed
+
+- **Security**: Approving a pending `write_file` action now re-checks current policies
+  before writing. If a policy was tightened after the action was queued, the approval
+  is rejected with an explanation rather than silently executing.
+- **Security**: Actions logged without an explicit policy decision no longer default
+  to `allow`. The safe default is now `pending`.
+- **Behaviour**: Paths listed in `requireApproval` no longer hold `read_file` actions
+  pending. Read operations are idempotent — only writes require approval.
+- **Reliability**: Bash command output is now capped at `maxBashOutputBytes`
+  (default 10 000) with a `[OUTPUT TRUNCATED]` marker appended when the limit
+  is exceeded.
+- **Compatibility**: Node binary detection now uses `process.execPath` instead of
+  reading NVM alias files. Works correctly with Homebrew, system Node, and any
+  version manager.
+- **CLI**: `waymark logs` no longer crashes on rows with malformed `input_payload`.
+- **CLI**: Date display in `waymark logs` is now consistent regardless of whether
+  the database stores timestamps with a space or a `T` separator.
+
+---
+
 ## [0.3.0] — 2026-04-04
 
 ### CLI output fixes

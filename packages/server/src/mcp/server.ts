@@ -21,27 +21,17 @@ import { notifyPendingAction } from '../notifications/slack';
 
 const SESSION_ID = uuidv4();
 
-// Bug 1: Build PATH that includes nvm-managed node binaries.
-// Sourcing shell profiles non-interactively is unreliable (NVM_DIR unset, brew missing, etc.)
-// Instead: read nvm's default alias directly from ~/.nvm and append known bin paths.
+// Build PATH that includes the current node binary's directory.
+// process.execPath works regardless of version manager (nvm, Homebrew, system, etc.)
 function getUserPath(): string {
   const base = process.env.PATH || '/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin';
   const extra: string[] = [];
 
-  const home = process.env.HOME || require('os').homedir();
-  const nvmDir = process.env.NVM_DIR || path.join(home, '.nvm');
+  // Use the directory of the current node binary — works regardless of version manager
+  const nodeBinDir = path.dirname(process.execPath);
+  if (!base.includes(nodeBinDir)) extra.push(nodeBinDir);
 
-  // Add all nvm version bin dirs that exist, default alias first
-  try {
-    const defaultAlias = path.join(nvmDir, 'alias', 'default');
-    if (fs.existsSync(defaultAlias)) {
-      const ver = fs.readFileSync(defaultAlias, 'utf8').trim().replace(/^v/, '');
-      const binDir = path.join(nvmDir, 'versions', 'node', `v${ver}`, 'bin');
-      if (fs.existsSync(binDir)) extra.push(binDir);
-    }
-  } catch {}
-
-  // Also add common fixed locations as fallback
+  // Common fallbacks
   for (const p of ['/usr/local/bin', '/opt/homebrew/bin']) {
     if (fs.existsSync(p) && !base.includes(p)) extra.push(p);
   }
@@ -105,8 +95,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const input_payload = JSON.stringify(args);
 
   if (name === 'write_file') {
-    const filePath = (args as any).path as string;
-    const content = (args as any).content as string;
+    const { path: filePath, content } = args as { path: string; content: string };
     const resolvedPath = path.resolve(filePath);
 
     // Policy check before execution
@@ -162,6 +151,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       input_payload,
       before_snapshot,
       status: 'pending',
+      decision: policyResult.decision,
+      policy_reason: policyResult.reason,
+      matched_rule: policyResult.matchedRule ?? null,
     });
 
     try {
@@ -186,7 +178,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
   } else if (name === 'read_file') {
-    const filePath = (args as any).path as string;
+    const { path: filePath } = args as { path: string };
     const resolvedPath = path.resolve(filePath);
 
     // Policy check before execution
@@ -232,6 +224,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       target_path: resolvedPath,
       input_payload,
       status: 'pending',
+      decision: policyResult.decision,
+      policy_reason: policyResult.reason,
+      matched_rule: policyResult.matchedRule ?? null,
     });
 
     try {
@@ -254,7 +249,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
   } else if (name === 'bash') {
-    const command = (args as any).command as string;
+    const { command } = args as { command: string };
 
     // Policy check before execution
     const config = loadConfig();
@@ -275,6 +270,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       target_path: null,
       input_payload,
       status: 'pending',
+      decision: policyResult.decision,
+      policy_reason: policyResult.reason,
+      matched_rule: policyResult.matchedRule ?? null,
     });
 
     // Bug 1 + Bug 2: use spawnSync for clean stdout/stderr separation and USER_PATH
@@ -284,8 +282,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       env: { ...process.env, PATH: USER_PATH },
     });
 
-    const stdout = result.stdout || '';
-    const stderr = result.stderr || '';
+    const rawStdout = result.stdout || '';
+    const rawStderr = result.stderr || '';
+    const maxBytes = config.policies.maxBashOutputBytes ?? 10000;
+    const stdout = rawStdout.length > maxBytes
+      ? rawStdout.slice(0, maxBytes) + '\n[OUTPUT TRUNCATED]'
+      : rawStdout;
+    const stderr = rawStderr.length > maxBytes
+      ? rawStderr.slice(0, maxBytes) + '\n[OUTPUT TRUNCATED]'
+      : rawStderr;
     const failed = result.status !== 0 || !!result.error;
 
     if (!failed) {

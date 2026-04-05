@@ -72,13 +72,13 @@ function matchesAny(absFilePath: string, patterns: string[]): string | null {
 
 export function checkFileAction(
   filePath: string,
-  _action: 'read' | 'write',
+  action: 'read' | 'write',
   config: WaymarkConfig
 ): PolicyResult {
   const absPath = path.isAbsolute(filePath) ? filePath : path.resolve(PROJECT_ROOT, filePath);
   const { blockedPaths, requireApproval, allowedPaths } = config.policies;
 
-  // 1. Blocked
+  // 1. Blocked (both read and write)
   const blockedMatch = matchesAny(absPath, blockedPaths);
   if (blockedMatch) {
     return {
@@ -88,14 +88,16 @@ export function checkFileAction(
     };
   }
 
-  // 2. Requires approval (queued/pending)
-  const approvalMatch = matchesAny(absPath, requireApproval);
-  if (approvalMatch) {
-    return {
-      decision: 'pending',
-      reason: `Path requires approval before execution`,
-      matchedRule: approvalMatch,
-    };
+  // 2. Requires approval (writes only — reads are idempotent, no approval needed)
+  if (action === 'write') {
+    const approvalMatch = matchesAny(absPath, requireApproval);
+    if (approvalMatch) {
+      return {
+        decision: 'pending',
+        reason: `Path requires approval before execution`,
+        matchedRule: approvalMatch,
+      };
+    }
   }
 
   // 3. Allowed

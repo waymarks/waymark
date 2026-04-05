@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { getAction, approveAction, rejectAction } from '../db/database';
+import { loadConfig, checkFileAction } from '../policies/engine';
 
 export interface ApprovalResult {
   success: boolean;
@@ -25,6 +26,14 @@ export async function approvePendingAction(
   if (action.tool_name === 'write_file') {
     const { path: filePath, content } = JSON.parse(action.input_payload) as { path: string; content: string };
     const resolvedPath = path.resolve(filePath);
+
+    // Re-check current policies — they may have changed since the action was queued
+    const currentConfig = loadConfig();
+    const recheck = checkFileAction(resolvedPath, 'write', currentConfig);
+    if (recheck.decision === 'block') {
+      return { success: false, error: `Approval blocked: policy changed (${recheck.reason})` };
+    }
+
     fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });
     fs.writeFileSync(resolvedPath, content, 'utf8');
     after_snapshot = content;

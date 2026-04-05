@@ -1,5 +1,11 @@
 import { ActionRow } from '../db/database';
 
+function parseIso(iso: string): Date {
+  const normalized = iso.includes('T') ? iso : iso.replace(' ', 'T');
+  const withZ = normalized.endsWith('Z') ? normalized : normalized + 'Z';
+  return new Date(withZ);
+}
+
 export async function notifyPendingAction(action: ActionRow): Promise<void> {
   const webhookUrl = process.env.WAYMARK_SLACK_WEBHOOK_URL;
   if (!webhookUrl) return;
@@ -8,7 +14,7 @@ export async function notifyPendingAction(action: ActionRow): Promise<void> {
   const dashboardUrl = `${baseUrl}/action/${action.action_id}`;
 
   const timeAgo = (() => {
-    const diff = Math.floor((Date.now() - new Date(action.created_at + (action.created_at.includes('Z') ? '' : 'Z')).getTime()) / 1000);
+    const diff = Math.floor((Date.now() - parseIso(action.created_at).getTime()) / 1000);
     if (diff < 60) return `${diff}s ago`;
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     return `${Math.floor(diff / 3600)}h ago`;

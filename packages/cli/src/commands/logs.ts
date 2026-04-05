@@ -1,7 +1,13 @@
 const BASE = 'http://localhost:3001';
 
+function parseIso(iso: string): Date {
+  const normalized = iso.includes('T') ? iso : iso.replace(' ', 'T');
+  const withZ = normalized.endsWith('Z') ? normalized : normalized + 'Z';
+  return new Date(withZ);
+}
+
 function relativeTime(iso: string): string {
-  const diffMs = Date.now() - new Date(iso.replace(' ', 'T') + 'Z').getTime();
+  const diffMs = Date.now() - parseIso(iso).getTime();
   const mins = Math.floor(diffMs / 60000);
   if (mins < 1) return 'just now';
   if (mins < 60) return `${mins}m ago`;
@@ -58,7 +64,13 @@ export async function run(): Promise<void> {
   for (const r of rows) {
     const target = r.target_path
       ? truncate(r.target_path, 40)
-      : truncate(JSON.parse(r.input_payload || '{}').command || '—', 40);
+      : (() => {
+          try {
+            return truncate(JSON.parse(r.input_payload || '{}').command || '—', 40);
+          } catch {
+            return '—';
+          }
+        })();
     console.log(
       pad(relativeTime(r.created_at), 10) + '  ' +
       pad(r.tool_name, 12) + '  ' +
