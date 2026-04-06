@@ -1,5 +1,18 @@
 # Waymark
 
+> ⚠️ **Package renamed as of v0.5.0**
+> The old `@shaifulshabuj-waymarks` packages have been deprecated.
+> Please switch to the new package scope:
+>
+> ```bash
+> npm uninstall @shaifulshabuj-waymarks/cli @shaifulshabuj-waymarks/server
+> npm install @way_marks/cli
+> ```
+>
+> All future updates will be published under `@way_marks` only.
+
+---
+
 **Control what AI agents can do in your codebase.**
 
 Waymark sits between your team and any AI agent.

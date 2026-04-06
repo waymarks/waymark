@@ -6,7 +6,37 @@ Versioning follows [Semantic Versioning](https://semver.org)
 
 ---
 
+## [0.5.1] — 2026-04-06
+
+### Changed
+
+- README and CHANGELOG updated with deprecation notice and migration
+  steps for users coming from `@shaifulshabuj-waymarks` packages.
+- No code changes — docs-only patch release.
+
+---
+
 ## [0.5.0] — 2026-04-06
+
+> ⚠️ **Package scope renamed in this release.**
+> `@shaifulshabuj-waymarks/cli` and `@shaifulshabuj-waymarks/server` are now
+> deprecated on npm. Switch to `@way_marks/cli` and `@way_marks/server`.
+> See migration steps below.
+
+### Migration from `@shaifulshabuj-waymarks`
+
+```bash
+# 1. Uninstall old packages
+npm uninstall @shaifulshabuj-waymarks/cli @shaifulshabuj-waymarks/server
+
+# 2. Install new packages
+npx @way_marks/cli init
+
+# 3. Restart Claude Code
+```
+
+Re-running `init` also updates your Claude Desktop MCP config to the new
+`waymark-${projectName}` key format required for multi-project support.
 
 ### Added
 
