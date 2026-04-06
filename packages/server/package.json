@@ -1,6 +1,6 @@
 {
   "name": "@way_marks/server",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Waymark MCP server and dashboard",
   "author": "Waymark <hello@waymarks.dev>",
   "license": "MIT",
@@ -31,27 +31,37 @@
   ],
   "scripts": {
     "build": "tsc",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
     "start": "node dist/api/server.js",
     "dev:api": "nodemon --exec ts-node src/api/server.ts",
     "dev:mcp": "ts-node src/mcp/server.ts",
     "db:reset": "node -e \"require('fs').rmSync('./data/waymark.db', {force:true}); console.log('DB deleted.')\" && ts-node -e \"require('./src/db/database'); console.log('DB recreated.')\""
   },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "testMatch": ["**/src/**/*.test.ts"]
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "better-sqlite3": "^9.4.3",
+    "concurrently": "^8.2.2",
     "dotenv": "^16.0.0",
     "express": "^4.18.2",
     "micromatch": "^4.0.5",
-    "uuid": "^9.0.0",
-    "concurrently": "^8.2.2"
+    "uuid": "^9.0.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.8",
     "@types/express": "^4.17.21",
+    "@types/jest": "^30.0.0",
     "@types/micromatch": "^4.0.9",
     "@types/node": "^20.11.5",
     "@types/uuid": "^9.0.7",
+    "jest": "^30.3.0",
     "nodemon": "^3.0.3",
+    "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   }

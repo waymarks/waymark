@@ -84,6 +84,8 @@ Dashboard: http://localhost:3001
 Open **http://localhost:3001** after running
 `npx @way_marks/cli start`.
 
+- **Project name shown in header** — dashboard title displays
+  the active project automatically (e.g. "waymark — my-app")
 - See every agent action in real time
 - Approve or reject pending actions
 - Roll back any write with one click

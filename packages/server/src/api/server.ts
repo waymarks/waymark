@@ -182,6 +182,24 @@ app.get('/api/config', (req, res) => {
   }
 });
 
+// GET /api/project — returns project metadata from .waymark/config.json
+app.get('/api/project', (req, res) => {
+  try {
+    const configPath = path.join(
+      process.env.WAYMARK_PROJECT_ROOT || process.cwd(),
+      '.waymark',
+      'config.json'
+    );
+    if (!fs.existsSync(configPath)) {
+      return res.json({ projectName: null, port: PORT });
+    }
+    const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8')) as { projectName?: string; port?: number };
+    res.json({ projectName: cfg.projectName || null, port: cfg.port || PORT });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Fallback: serve UI for any unmatched route
 app.get('*', (req, res) => {
   res.sendFile(path.join(UI_DIR, 'index.html'));

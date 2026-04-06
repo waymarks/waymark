@@ -84,7 +84,7 @@
   </style>
 </head>
 <body>
-  <h1>waymark <span id="pending-badge" style="display:none"></span></h1>
+  <h1>waymark <span id="project-name" style="color:#555"></span><span id="pending-badge" style="display:none"></span></h1>
   <p class="subtitle">uglybugly agent action viewer — intercepts and logs MCP tool calls</p>
   <div class="meta">
     <span id="count-display">loading...</span>
@@ -410,8 +410,19 @@
       }
     }
 
+    async function loadProjectName() {
+      try {
+        const res = await fetch('/api/project');
+        const data = await res.json();
+        if (data.projectName) {
+          document.getElementById('project-name').textContent = '— ' + data.projectName;
+        }
+      } catch (e) { /* silent — project name is cosmetic */ }
+    }
+
     // Initial load + interval
     refresh();
+    loadProjectName();
     setInterval(refresh, 3000);
   </script>
 </body>

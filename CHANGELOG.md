@@ -6,6 +6,19 @@ Versioning follows [Semantic Versioning](https://semver.org)
 
 ---
 
+## [0.5.2] — 2026-04-06
+
+### Changed
+
+- **Dashboard now shows project name** in the header. After running
+  `npx @way_marks/cli start`, the dashboard title displays **waymark — your-project**
+  instead of a generic "waymark". No configuration required — the name
+  is derived automatically from the project directory.
+- New API endpoint `GET /api/project` returns project metadata
+  (`projectName`, `port`) for UI consumption.
+
+---
+
 ## [0.5.1] — 2026-04-06
 
 ### Changed
