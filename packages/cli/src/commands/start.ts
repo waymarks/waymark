@@ -1,11 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as net from 'net';
 import { spawn, execSync } from 'child_process';
 
 function resolveServerBin(name: 'mcp' | 'api'): string {
   const file = name === 'mcp' ? 'mcp/server.js' : 'api/server.js';
   try {
-    return require.resolve(`@shaifulshabuj-waymarks/server/dist/${file}`);
+    return require.resolve(`@way_marks/server/dist/${file}`);
   } catch {
     return path.resolve(__dirname, `../../../server/dist/${file}`);
   }
@@ -26,14 +27,40 @@ function isAlive(pid: number): boolean {
   try { process.kill(pid, 0); return true; } catch { return false; }
 }
 
-export function run(): void {
+function kebabCase(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/[\s_]+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function findAvailablePort(preferred: number): Promise<number> {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.listen(preferred, () => {
+      const port = (server.address() as net.AddressInfo).port;
+      server.close(() => resolve(port));
+    });
+    server.on('error', () => {
+      if (preferred >= 3010) {
+        console.error('No available ports found between 3001-3010. Stop other Waymark projects first.');
+        process.exit(1);
+      }
+      resolve(findAvailablePort(preferred + 1));
+    });
+  });
+}
+
+export async function run(): Promise<void> {
   const projectRoot = process.cwd();
   const configPath = path.join(projectRoot, 'waymark.config.json');
   const waymarkDir = path.join(projectRoot, '.waymark');
   const pidFile = path.join(waymarkDir, 'waymark.pid');
 
   if (!fs.existsSync(configPath)) {
-    console.error('waymark.config.json not found. Run: npx @shaifulshabuj-waymarks/cli init');
+    console.error('waymark.config.json not found. Run: npx @way_marks/cli init');
     process.exit(1);
   }
 
@@ -42,9 +69,10 @@ export function run(): void {
     try {
       const saved = JSON.parse(fs.readFileSync(pidFile, 'utf8'));
       if (isAlive(saved.api) || isAlive(saved.mcp)) {
+        const port = saved.port || 3001;
         console.log('Waymark is already running.');
-        console.log('Dashboard:  http://localhost:3001');
-        console.log('Run "npx @shaifulshabuj-waymarks/cli stop" to stop it.');
+        console.log(`Dashboard:  http://localhost:${port}`);
+        console.log('Run "npx @way_marks/cli stop" to stop it.');
         process.exit(0);
       }
     } catch {
@@ -52,17 +80,31 @@ export function run(): void {
     }
   }
 
+  const port = await findAvailablePort(3001);
+  const dbPath = path.join(projectRoot, '.waymark', 'waymark.db');
+  const projectName = kebabCase(path.basename(projectRoot));
+
   const nodeBin = process.execPath;
   const mcpBin = resolveServerBin('mcp');
   const apiBin = resolveServerBin('api');
-  const env = { ...process.env, WAYMARK_PROJECT_ROOT: projectRoot };
+  const env = {
+    ...process.env,
+    WAYMARK_PROJECT_ROOT: projectRoot,
+    WAYMARK_DB_PATH: dbPath,
+    WAYMARK_PORT: String(port),
+  };
 
   const apiProc = spawn(nodeBin, [apiBin], {
     env,
     stdio: 'ignore',
     detached: true
   });
-  const mcpProc = spawn(nodeBin, [mcpBin, '--project-root', projectRoot], {
+  const mcpProc = spawn(nodeBin, [
+    mcpBin,
+    '--project-root', projectRoot,
+    '--db-path', dbPath,
+    '--port', String(port),
+  ], {
     env,
     stdio: 'ignore',
     detached: true
@@ -71,20 +113,29 @@ export function run(): void {
   apiProc.unref();
   mcpProc.unref();
 
-  // Write PID file
+  // Ensure .waymark directory exists
   if (!fs.existsSync(waymarkDir)) fs.mkdirSync(waymarkDir, { recursive: true });
+
+  // Write .waymark/config.json
+  fs.writeFileSync(
+    path.join(waymarkDir, 'config.json'),
+    JSON.stringify({ port, projectRoot, projectName, startedAt: new Date().toISOString() }, null, 2) + '\n'
+  );
+
+  // Write PID file
   fs.writeFileSync(pidFile, JSON.stringify({
     api: apiProc.pid,
     mcp: mcpProc.pid,
+    port,
     startedAt: new Date().toISOString()
   }, null, 2) + '\n');
 
   // Open browser after short delay for server startup
   setTimeout(() => {
-    openBrowser('http://localhost:3001');
+    openBrowser(`http://localhost:${port}`);
     console.log('Waymark started (background)');
-    console.log('Dashboard:  http://localhost:3001');
+    console.log(`Dashboard:  http://localhost:${port}`);
     console.log('MCP server: active (stdio)');
-    console.log('Run "npx @shaifulshabuj-waymarks/cli stop" to stop.');
+    console.log('Run "npx @way_marks/cli stop" to stop.');
   }, 1500);
 }

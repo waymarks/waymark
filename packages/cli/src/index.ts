@@ -19,7 +19,7 @@ switch (command) {
     require('./commands/logs').run();
     break;
   default:
-    console.log('Usage: npx @shaifulshabuj-waymarks/cli <init|start|stop|status|logs>');
+    console.log('Usage: npx @way_marks/cli <init|start|stop|status|logs>');
     console.log('');
     console.log('Commands:');
     console.log('  init    Set up Waymark in the current project');

@@ -3,12 +3,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const PROJECT_ROOT = process.env.WAYMARK_PROJECT_ROOT || process.cwd();
-const DATA_DIR = path.join(PROJECT_ROOT, 'data');
-const DB_PATH = path.join(DATA_DIR, 'waymark.db');
+const DB_PATH = process.env.WAYMARK_DB_PATH
+  || path.join(PROJECT_ROOT, '.waymark', 'waymark.db');
+const DB_DIR = path.dirname(DB_PATH);
 
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+// Ensure database directory exists
+if (!fs.existsSync(DB_DIR)) {
+  fs.mkdirSync(DB_DIR, { recursive: true });
 }
 
 const db = new Database(DB_PATH);

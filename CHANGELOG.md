@@ -6,6 +6,44 @@ Versioning follows [Semantic Versioning](https://semver.org)
 
 ---
 
+## [0.5.0] — 2026-04-06
+
+### Added
+
+- **Multi-project support**: Each project now gets its own isolated SQLite database
+  at `.waymark/waymark.db`, an auto-selected port (3001–3010), and a named MCP
+  server entry (`waymark-${projectName}`) in Claude Desktop config. Multiple
+  Waymark projects can run simultaneously without conflict.
+- **Port auto-selection**: `waymark start` probes ports 3001–3010 and picks the
+  first available one. Port is stored in `.waymark/config.json`.
+- **Project status command** (`waymark status`): Shows project name, root, DB
+  path, port, dashboard URL, MCP key, and whether the server is currently running.
+
+### Changed
+
+- **Package scope renamed** from `@shaifulshabuj-waymarks` to `@way_marks`.
+  Install with `npm install @way_marks/server` or `npx @way_marks/cli init`.
+- **CLAUDE.md template** now uses mandatory enforcement language with exact MCP
+  tool names (`mcp__waymark-${projectName}__write_file`, etc.) instead of polite
+  suggestions. Claude Code will enforce Waymark tool usage without ambiguity.
+- **MCP server registration** now uses `waymark-${projectName}` as the Claude
+  Desktop config key instead of the generic `"waymark"`. Re-run `init` in each
+  project to register the updated key.
+
+### Fixed
+
+- `waymark init` no longer overwrites other projects' MCP entries when registering
+  a new project — it adds/updates only the current project's key.
+
+### Breaking changes
+
+- DB location moved from `data/waymark.db` to `.waymark/waymark.db`.
+  Existing databases are not migrated automatically.
+- MCP key in Claude Desktop config changes. Re-run `npx @way_marks/cli init`
+  in each project after upgrading.
+
+---
+
 ## [0.4.0] — 2026-04-04
 
 ### Fixed
@@ -34,7 +72,7 @@ Versioning follows [Semantic Versioning](https://semver.org)
 ### CLI output fixes
 
 - All command hints in CLI output now show the full
-  `npx @shaifulshabuj-waymarks/cli <cmd>` form —
+  `npx @way_marks/cli <cmd>` form —
   works correctly whether Waymark is installed
   globally or invoked via npx
 
@@ -73,7 +111,7 @@ Versioning follows [Semantic Versioning](https://semver.org)
   with full context and agent reasoning
 
 #### Developer Experience
-- npx @shaifulshabuj-waymarks/cli init — one command project setup
+- npx @way_marks/cli init — one command project setup
 - Auto-generates waymark.config.json
 - Auto-generates CLAUDE.md for always-on
   Claude Code activation

@@ -37,8 +37,8 @@ Waymark intercepts every action before it runs:
 
 ```bash
 cd your-project
-npx @shaifulshabuj-waymarks/cli init
-npx @shaifulshabuj-waymarks/cli start
+npx @way_marks/cli init
+npx @way_marks/cli start
 ```
 
 Restart Claude Code. Done.
@@ -69,7 +69,7 @@ Dashboard: http://localhost:3001
 ## Dashboard
 
 Open **http://localhost:3001** after running
-`npx @shaifulshabuj-waymarks/cli start`.
+`npx @way_marks/cli start`.
 
 - See every agent action in real time
 - Approve or reject pending actions
@@ -130,13 +130,13 @@ held until a human approves from the dashboard.
 ## CLI Commands
 
 ```bash
-npx @shaifulshabuj-waymarks/cli init    # Set up Waymark in current project
-npx @shaifulshabuj-waymarks/cli start   # Start dashboard + MCP server (background)
-npx @shaifulshabuj-waymarks/cli stop    # Stop the running servers
-npx @shaifulshabuj-waymarks/cli status  # Check if server is running
-npx @shaifulshabuj-waymarks/cli logs    # View recent actions in terminal
-npx @shaifulshabuj-waymarks/cli logs --pending   # Show only pending actions
-npx @shaifulshabuj-waymarks/cli logs --blocked   # Show only blocked actions
+npx @way_marks/cli init    # Set up Waymark in current project
+npx @way_marks/cli start   # Start dashboard + MCP server (background)
+npx @way_marks/cli stop    # Stop the running servers
+npx @way_marks/cli status  # Check if server is running
+npx @way_marks/cli logs    # View recent actions in terminal
+npx @way_marks/cli logs --pending   # Show only pending actions
+npx @way_marks/cli logs --blocked   # Show only blocked actions
 ```
 
 ---

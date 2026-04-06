@@ -1,7 +1,15 @@
-// Parse --project-root arg before any imports trigger module-level DB/config initialization
+// Parse args before any imports trigger module-level DB/config initialization
 const _projectRootIdx = process.argv.indexOf('--project-root');
 if (_projectRootIdx !== -1 && process.argv[_projectRootIdx + 1]) {
   process.env.WAYMARK_PROJECT_ROOT = process.argv[_projectRootIdx + 1];
+}
+const _dbPathIdx = process.argv.indexOf('--db-path');
+if (_dbPathIdx !== -1 && process.argv[_dbPathIdx + 1]) {
+  process.env.WAYMARK_DB_PATH = process.argv[_dbPathIdx + 1];
+}
+const _portIdx = process.argv.indexOf('--port');
+if (_portIdx !== -1 && process.argv[_portIdx + 1]) {
+  process.env.WAYMARK_PORT = process.argv[_portIdx + 1];
 }
 
 import 'dotenv/config';

@@ -1,13 +1,13 @@
-# @shaifulshabuj-waymarks/server
+# @way_marks/server
 
 MCP server and REST API backend for [Waymark](https://github.com/waymarks/waymark).
 
-> **This package is installed automatically** by `@shaifulshabuj-waymarks/cli`.
+> **This package is installed automatically** by `@way_marks/cli`.
 > End users should not install it directly.
 
 ```bash
 # Correct — install the CLI, which pulls in this package
-npx @shaifulshabuj-waymarks/cli init
+npx @way_marks/cli init
 ```
 
 ---
@@ -21,7 +21,7 @@ Two long-running Node.js processes, both spawned by `waymark start`:
 | MCP server | `dist/mcp/server.js` | stdio MCP server — intercepts Claude Code tool calls, enforces policy, logs actions |
 | API server | `dist/api/server.js` | HTTP server on port 3001 — serves dashboard UI and REST API |
 
-Both processes share the same SQLite database (`<project-root>/data/waymark.db`). The MCP process writes; the API process reads. All database calls are synchronous (`better-sqlite3`) so concurrent access is safe.
+Both processes share the same SQLite database (`<project-root>/.waymark/waymark.db`). The MCP process writes; the API process reads. All database calls are synchronous (`better-sqlite3`) so concurrent access is safe.
 
 ---
 

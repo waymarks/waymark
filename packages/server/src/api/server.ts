@@ -7,7 +7,7 @@ import { loadConfig } from '../policies/engine';
 import { approvePendingAction, rejectPendingAction } from '../approvals/handler';
 
 const app = express();
-const PORT = 3001;
+const PORT = parseInt(process.env.WAYMARK_PORT || '3001', 10);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
