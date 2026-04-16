@@ -1,3 +1,16 @@
+## [0.9.0] — 2026-04-16
+
+### Added
+- (Add changes here)
+
+### Changed
+- (Add changes here)
+
+### Fixed
+- (Add changes here)
+
+---
+
 ## [0.8.0] — 2026-04-16
 
 ### Added
@@ -28,9 +41,9 @@
   - Non-blocking logging (1-second timeout, never slows user)
 
 - **New documentation**
-  - Platform comparison matrix and roadmap (see README_PLATFORMS.md)
-  - Setup guide for GitHub Copilot CLI (see COPILOT_CLI.md)
-  - FAQ with 200+ questions and answers (see FAQ.md)
+  - Platform comparison matrix and roadmap (see docs/README_PLATFORMS.md)
+  - Setup guide for GitHub Copilot CLI (see docs/COPILOT_CLI.md)
+  - FAQ with 200+ questions and answers (see docs/FAQ.md)
 
 **Complete Architecture Improvements (Phases 1-4)**
 

@@ -195,7 +195,7 @@ api.slack.com/apps → Incoming Webhooks
 - **Claude Desktop** — native MCP integration, all features
 - **GitHub Copilot CLI** — experimental, CLI logging via wrapper
 - **Any MCP-compatible agent** — register the Waymark MCP server in your agent config
-- More integrations coming (see [Platform Guide](README_PLATFORMS.md))
+- More integrations coming (see [Platform Guide](../docs/README_PLATFORMS.md))
 
 ---
 
