@@ -1,6 +1,6 @@
 {
   "name": "@way_marks/server",
-  "version": "0.5.2",
+  "version": "0.6.0",
   "description": "Waymark MCP server and dashboard",
   "author": "Waymark <hello@waymarks.dev>",
   "license": "MIT",
@@ -41,7 +41,9 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
-    "testMatch": ["**/src/**/*.test.ts"]
+    "testMatch": [
+      "**/src/**/*.test.ts"
+    ]
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
