@@ -5,7 +5,8 @@ import * as readline from 'readline';
 import { spawnSync } from 'child_process';
 
 const DEFAULT_CONFIG = {
-  version: '1',
+  version: '2',
+  platforms: ['claude'],
   policies: {
     allowedPaths: [
       './src/**',
@@ -139,6 +140,38 @@ function resolveServerBin(): string {
   }
 }
 
+async function selectPlatforms(): Promise<string[]> {
+  console.log('');
+  console.log('┌─ Platform Selection ──────────────────────────────────┐');
+  console.log('│ Which AI platform(s) will you use with Waymark?       │');
+  console.log('│                                                       │');
+  console.log('│ 1. Claude Desktop / Claude Code (RECOMMENDED) ✓       │');
+  console.log('│    → Best experience. Full Waymark features.          │');
+  console.log('│                                                       │');
+  console.log('│ 2. GitHub Copilot CLI (EXPERIMENTAL) ⚠               │');
+  console.log('│    → Terminal support. CLI-only (no VSCode).          │');
+  console.log('│                                                       │');
+  console.log('│ 3. Both (Claude + GitHub Copilot CLI)                 │');
+  console.log('│    → Setup for both. Easy to switch.                  │');
+  console.log('└───────────────────────────────────────────────────────┘');
+  console.log('');
+
+  while (true) {
+    const answer = await prompt('Enter choice (1-3) [default: 1]: ');
+    const choice = answer || '1';
+    
+    if (choice === '1') {
+      return ['claude'];
+    } else if (choice === '2') {
+      return ['copilot-cli'];
+    } else if (choice === '3') {
+      return ['claude', 'copilot-cli'];
+    } else {
+      console.log('Invalid choice. Please enter 1, 2, or 3.');
+    }
+  }
+}
+
 export async function run(): Promise<void> {
   const projectRoot = process.cwd();
   const projectName = kebabCase(path.basename(projectRoot));
@@ -154,6 +187,9 @@ export async function run(): Promise<void> {
   if (!hasPackageJson && !hasGit) {
     console.warn('Warning: No package.json or .git found. Continuing anyway.');
   }
+
+  // Step 1b — Select platforms (NEW in Phase 5)
+  const selectedPlatforms = await selectPlatforms();
 
   // Step 2 — Install @way_marks/server (skip if already resolvable or in monorepo)
   let serverBin: string;
@@ -179,35 +215,41 @@ export async function run(): Promise<void> {
     }
   }
 
-  // Step 3 — Create waymark.config.json
+  // Step 3 — Create waymark.config.json with selected platforms
   const configPath = path.join(projectRoot, 'waymark.config.json');
+  const platformConfig = { ...DEFAULT_CONFIG, platforms: selectedPlatforms };
+  
   if (fs.existsSync(configPath)) {
     const answer = await prompt('waymark.config.json exists. Overwrite? (y/N) ');
     if (answer.toLowerCase() !== 'y') {
       console.log('Keeping existing waymark.config.json');
     } else {
-      fs.writeFileSync(configPath, JSON.stringify(DEFAULT_CONFIG, null, 2) + '\n');
-      console.log('✓ Created waymark.config.json');
+      fs.writeFileSync(configPath, JSON.stringify(platformConfig, null, 2) + '\n');
+      console.log('✓ Created waymark.config.json with platforms:', selectedPlatforms.join(', '));
     }
   } else {
-    fs.writeFileSync(configPath, JSON.stringify(DEFAULT_CONFIG, null, 2) + '\n');
-    console.log('✓ Created waymark.config.json');
+    fs.writeFileSync(configPath, JSON.stringify(platformConfig, null, 2) + '\n');
+    console.log('✓ Created waymark.config.json with platforms:', selectedPlatforms.join(', '));
   }
 
-  // Step 4 — Create/append CLAUDE.md
-  const claudeMdPath = path.join(projectRoot, 'CLAUDE.md');
-  const claudeMdContent = generateClaudeMd(projectName, defaultPort);
-  if (fs.existsSync(claudeMdPath)) {
-    const existing = fs.readFileSync(claudeMdPath, 'utf8');
-    if (existing.includes(WAYMARK_MARKER)) {
-      console.log('✓ CLAUDE.md already has Waymark section');
+  // Step 4 — Create/append CLAUDE.md (only if Claude selected)
+  if (selectedPlatforms.includes('claude')) {
+    const claudeMdPath = path.join(projectRoot, 'CLAUDE.md');
+    const claudeMdContent = generateClaudeMd(projectName, defaultPort);
+    if (fs.existsSync(claudeMdPath)) {
+      const existing = fs.readFileSync(claudeMdPath, 'utf8');
+      if (existing.includes(WAYMARK_MARKER)) {
+        console.log('✓ CLAUDE.md already has Waymark section');
+      } else {
+        fs.appendFileSync(claudeMdPath, `\n${WAYMARK_MARKER}\n${claudeMdContent}`);
+        console.log('✓ Appended Waymark section to CLAUDE.md');
+      }
     } else {
-      fs.appendFileSync(claudeMdPath, `\n${WAYMARK_MARKER}\n${claudeMdContent}`);
-      console.log('✓ Appended Waymark section to CLAUDE.md');
+      fs.writeFileSync(claudeMdPath, `${WAYMARK_MARKER}\n${claudeMdContent}`);
+      console.log('✓ Created CLAUDE.md — Claude Code will now use Waymark automatically');
     }
   } else {
-    fs.writeFileSync(claudeMdPath, `${WAYMARK_MARKER}\n${claudeMdContent}`);
-    console.log('✓ Created CLAUDE.md — Claude Code will now use Waymark automatically');
+    console.log('⊘ Skipping CLAUDE.md (Claude not selected)');
   }
 
   // Step 5 — Update .gitignore
@@ -225,45 +267,64 @@ export async function run(): Promise<void> {
     console.log('✓ .gitignore already up to date');
   }
 
-  // Step 6 — Register MCP in both Claude configs
-  const nodeBin = process.execPath;
-  const mcpEntry = {
-    command: nodeBin,
-    args: [serverBin, '--project-root', projectRoot, '--db-path', dbPath]
-  };
+  // Step 6 — Register MCP in both Claude configs (only if Claude selected)
+  if (selectedPlatforms.includes('claude')) {
+    const nodeBin = process.execPath;
+    const mcpEntry = {
+      command: nodeBin,
+      args: [serverBin, '--project-root', projectRoot, '--db-path', dbPath]
+    };
 
-  // Claude Desktop config — add/update this project's entry only
-  const desktopConfigPath = getClaudeDesktopConfigPath();
-  try {
-    const desktopDir = path.dirname(desktopConfigPath);
-    if (!fs.existsSync(desktopDir)) fs.mkdirSync(desktopDir, { recursive: true });
-    const desktopConfig = fs.existsSync(desktopConfigPath)
-      ? JSON.parse(fs.readFileSync(desktopConfigPath, 'utf8'))
-      : { mcpServers: {} };
-    if (!desktopConfig.mcpServers) desktopConfig.mcpServers = {};
-    desktopConfig.mcpServers[mcpKey] = mcpEntry;
-    fs.writeFileSync(desktopConfigPath, JSON.stringify(desktopConfig, null, 2) + '\n');
-    console.log(`✓ Registered MCP server "${mcpKey}" in Claude Desktop config`);
-  } catch (err: any) {
-    console.warn(`Warning: Could not update Claude Desktop config: ${err.message}`);
+    // Claude Desktop config — add/update this project's entry only
+    const desktopConfigPath = getClaudeDesktopConfigPath();
+    try {
+      const desktopDir = path.dirname(desktopConfigPath);
+      if (!fs.existsSync(desktopDir)) fs.mkdirSync(desktopDir, { recursive: true });
+      const desktopConfig = fs.existsSync(desktopConfigPath)
+        ? JSON.parse(fs.readFileSync(desktopConfigPath, 'utf8'))
+        : { mcpServers: {} };
+      if (!desktopConfig.mcpServers) desktopConfig.mcpServers = {};
+      desktopConfig.mcpServers[mcpKey] = mcpEntry;
+      fs.writeFileSync(desktopConfigPath, JSON.stringify(desktopConfig, null, 2) + '\n');
+      console.log(`✓ Registered MCP server "${mcpKey}" in Claude Desktop config`);
+    } catch (err: any) {
+      console.warn(`Warning: Could not update Claude Desktop config: ${err.message}`);
+    }
+
+    // .mcp.json (Claude Code project-level)
+    const mcpJsonPath = path.join(projectRoot, '.mcp.json');
+    try {
+      const mcpJson = fs.existsSync(mcpJsonPath)
+        ? JSON.parse(fs.readFileSync(mcpJsonPath, 'utf8'))
+        : { mcpServers: {} };
+      if (!mcpJson.mcpServers) mcpJson.mcpServers = {};
+      mcpJson.mcpServers[mcpKey] = { type: 'stdio', ...mcpEntry, cwd: projectRoot };
+      fs.writeFileSync(mcpJsonPath, JSON.stringify(mcpJson, null, 2) + '\n');
+      console.log(`✓ Created/updated .mcp.json for Claude Code`);
+    } catch (err: any) {
+      console.warn(`Warning: Could not update .mcp.json: ${err.message}`);
+    }
+  } else {
+    console.log('⊘ Skipping MCP registration (Claude not selected)');
   }
 
-  // .mcp.json (Claude Code project-level)
-  const mcpJsonPath = path.join(projectRoot, '.mcp.json');
-  try {
-    const mcpJson = fs.existsSync(mcpJsonPath)
-      ? JSON.parse(fs.readFileSync(mcpJsonPath, 'utf8'))
-      : { mcpServers: {} };
-    if (!mcpJson.mcpServers) mcpJson.mcpServers = {};
-    mcpJson.mcpServers[mcpKey] = { type: 'stdio', ...mcpEntry, cwd: projectRoot };
-    fs.writeFileSync(mcpJsonPath, JSON.stringify(mcpJson, null, 2) + '\n');
-    console.log(`✓ Created/updated .mcp.json for Claude Code`);
-  } catch (err: any) {
-    console.warn(`Warning: Could not update .mcp.json: ${err.message}`);
+  // Step 6b — Show Copilot CLI instructions (if Copilot CLI selected)
+  if (selectedPlatforms.includes('copilot-cli')) {
+    console.log('');
+    console.log('📋 GitHub Copilot CLI Setup');
+    console.log('─'.repeat(50));
+    console.log('⚠️  Copilot CLI support requires manual setup.');
+    console.log('See COPILOT_CLI.md for step-by-step instructions.');
+    console.log('');
+    console.log('Quick start:');
+    console.log('1. Find copilot binary: which copilot');
+    console.log('2. Run: npx @way_marks/cli init-copilot-wrapper');
+    console.log('3. Test: copilot --version');
+    console.log('');
   }
 
-  // Step 7 — Success summary
-  const col = 43;
+  // Step 7 — Success summary (updated for platform selection)
+  const col = 50;
   const pad = (s: string) => s + ' '.repeat(Math.max(0, col - 2 - s.length));
   console.log('');
   console.log('┌' + '─'.repeat(col) + '┐');
@@ -271,22 +332,38 @@ export async function run(): Promise<void> {
   console.log(`│ ${pad('')} │`);
   console.log(`│ ${pad(`Project: ${projectName}`)} │`);
   console.log(`│ ${pad('Database: .waymark/waymark.db')} │`);
-  console.log(`│ ${pad(`MCP key: ${mcpKey}`)} │`);
+  console.log(`│ ${pad(`Platforms: ${selectedPlatforms.join(', ')}`)} │`);
   console.log(`│ ${pad('')} │`);
   console.log(`│ ${pad('Files created:')} │`);
-  console.log(`│ ${pad('  waymark.config.json')} │`);
-  console.log(`│ ${pad('  CLAUDE.md')} │`);
+  console.log(`│ ${pad('  waymark.config.json (with platforms)')} │`);
+  if (selectedPlatforms.includes('claude')) {
+    console.log(`│ ${pad('  CLAUDE.md')} │`);
+  }
+  if (selectedPlatforms.includes('copilot-cli')) {
+    console.log(`│ ${pad('  (see COPILOT_CLI.md setup)')} │`);
+  }
   console.log(`│ ${pad('  .waymark/ (gitignored)')} │`);
   console.log(`│ ${pad('')} │`);
-  console.log(`│ ${pad('Next steps:')} │`);
-  console.log(`│ ${pad('1. Run: npx @way_marks/cli start')} │`);
-  console.log(`│ ${pad('2. Restart Claude Code')} │`);
-  console.log(`│ ${pad('3. Open this project in Claude')} │`);
-  console.log(`│ ${pad('4. Dashboard: http://localhost:3001')} │`);
-  console.log(`│ ${pad('   (port may differ if 3001 is taken)')} │`);
+  
+  if (selectedPlatforms.includes('claude')) {
+    console.log(`│ ${pad('Next steps (Claude):')} │`);
+    console.log(`│ ${pad('1. Run: npx @way_marks/cli start')} │`);
+    console.log(`│ ${pad('2. Restart Claude Code')} │`);
+    console.log(`│ ${pad('3. Open project in Claude')} │`);
+    console.log(`│ ${pad('4. Dashboard: http://localhost:3001')} │`);
+  }
+  
+  if (selectedPlatforms.includes('copilot-cli')) {
+    if (selectedPlatforms.includes('claude')) {
+      console.log(`│ ${pad('')} │`);
+    }
+    console.log(`│ ${pad('Next steps (Copilot CLI):')} │`);
+    console.log(`│ ${pad('1. See COPILOT_CLI.md for wrapper setup')} │`);
+  }
+  
   console.log(`│ ${pad('')} │`);
-  console.log(`│ ${pad('Waymark is now always-on in this')} │`);
-  console.log(`│ ${pad('project. Claude will use Waymark')} │`);
-  console.log(`│ ${pad('tools automatically via CLAUDE.md')} │`);
+  console.log(`│ ${pad('For more info:')} │`);
+  console.log(`│ ${pad('  README.md — Feature overview')} │`);
+  console.log(`│ ${pad('  README_PLATFORMS.md — Platform support')} │`);
   console.log('└' + '─'.repeat(col) + '┘');
 }

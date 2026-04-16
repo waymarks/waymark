@@ -2,9 +2,58 @@ import 'dotenv/config';
 import express from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
-import { getActions, getAction, markRolledBack, getSessions, getPendingCount } from '../db/database';
+import { getActions, getAction, markRolledBack, getSessions, getPendingCount, getActionsWithFiltering, archiveOldActions, getSummaryStats, ActionFilter, insertAction } from '../db/database';
 import { loadConfig } from '../policies/engine';
 import { approvePendingAction, rejectPendingAction } from '../approvals/handler';
+
+// Import registry for Phase 2 hub navigation
+const registryPath = path.join(process.env.HOME || process.env.USERPROFILE || '', '.waymark', 'registry.json');
+function getRegistryProjects() {
+  try {
+    if (!fs.existsSync(registryPath)) return [];
+    const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+    return registry.projects || [];
+  } catch {
+    return [];
+  }
+}
+
+// Phase 4: Garbage collection for registry
+function garbageCollectRegistryFile(): number {
+  try {
+    if (!fs.existsSync(registryPath)) return 0;
+    const registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+    const cutoffTime = new Date();
+    cutoffTime.setDate(cutoffTime.getDate() - 7);
+    
+    let removed = 0;
+    const projects = registry.projects || {};
+    const idsToRemove: string[] = [];
+    
+    for (const [id, entry] of Object.entries(projects) as any[]) {
+      if (entry.status === 'stopped' && entry.stoppedAt) {
+        const stoppedTime = new Date(entry.stoppedAt);
+        if (stoppedTime < cutoffTime) {
+          idsToRemove.push(id);
+        }
+      }
+    }
+    
+    for (const id of idsToRemove) {
+      delete registry.projects[id];
+      removed++;
+    }
+    
+    if (removed > 0) {
+      registry.lastUpdated = new Date().toISOString();
+      fs.writeFileSync(registryPath, JSON.stringify(registry, null, 2) + '\n');
+    }
+    
+    return removed;
+  } catch {
+    return 0;
+  }
+}
 
 const app = express();
 const PORT = parseInt(process.env.WAYMARK_PORT || '3001', 10);
@@ -24,6 +73,82 @@ app.get('/api/actions', (req, res) => {
     }
     const actions = getActions();
     res.json(actions);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Phase 3: GET /api/actions/paginated — paginated actions with filtering
+app.get('/api/actions/paginated', (req, res) => {
+  try {
+    const filter: ActionFilter = {
+      status: req.query.status as string | undefined,
+      tool_name: req.query.tool_name as string | undefined,
+      search: req.query.search as string | undefined,
+      page: parseInt(req.query.page as string) || 1,
+      limit: parseInt(req.query.limit as string) || 50,
+    };
+    const result = getActionsWithFiltering(filter);
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Phase 3: GET /api/stats — summary statistics
+app.get('/api/stats', (req, res) => {
+  try {
+    const stats = getSummaryStats();
+    res.json(stats);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Phase 5B: POST /api/cli-action — log GitHub Copilot CLI command
+// Called by copilot-cli-wrapper.sh when user runs: copilot [command]
+app.post('/api/cli-action', (req, res) => {
+  try {
+    const { command, args, cwd, timestamp, shell, user } = req.body;
+    
+    if (!command) {
+      return res.status(400).json({ error: 'Missing command field' });
+    }
+
+    // Generate action ID and session ID
+    const action_id = `cli-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const session_id = 'cli-session';  // All CLI actions share same session
+    
+    // Log CLI action using insertAction function
+    insertAction({
+      action_id,
+      session_id,
+      tool_name: 'copilot',
+      input_payload: JSON.stringify({ command, args, cwd, shell, user }),
+      status: 'executed',  // CLI always executes (no approval flow)
+      event_type: 'execution',
+      observation_context: `CLI: ${command} ${args}`,
+      request_source: 'cli',
+      source: 'cli',  // Distinguish from MCP
+    });
+
+    res.json({ 
+      success: true, 
+      action_id,
+      message: `Logged Copilot CLI: ${command} ${args}`
+    });
+  } catch (err: any) {
+    console.error('Error logging CLI action:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Phase 3: POST /api/maintenance/archive — archive old actions
+app.post('/api/maintenance/archive', (req, res) => {
+  try {
+    const daysOld = parseInt(req.body?.daysOld as string) || 30;
+    const archived = archiveOldActions(daysOld);
+    res.json({ success: true, archived, message: `Archived ${archived} actions older than ${daysOld} days` });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -195,6 +320,26 @@ app.get('/api/project', (req, res) => {
     }
     const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8')) as { projectName?: string; port?: number };
     res.json({ projectName: cfg.projectName || null, port: cfg.port || PORT });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/hub/projects — Phase 2: returns all registered projects (optional hub feature)
+app.get('/api/hub/projects', (req, res) => {
+  try {
+    const projects = getRegistryProjects();
+    res.json(projects);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Phase 4: POST /api/registry/cleanup — garbage collect stale entries
+app.post('/api/registry/cleanup', (req, res) => {
+  try {
+    const removed = garbageCollectRegistryFile();
+    res.json({ success: true, removed, message: `Garbage collected ${removed} stale entries` });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

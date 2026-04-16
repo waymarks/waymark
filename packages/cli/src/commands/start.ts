@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as net from 'net';
 import { spawn, execSync } from 'child_process';
+import { registerProject, findAvailablePort as findAvailableRegistryPort } from '../registry';
 
 function resolveServerBin(name: 'mcp' | 'api'): string {
   const file = name === 'mcp' ? 'mcp/server.js' : 'api/server.js';
@@ -37,20 +38,26 @@ function kebabCase(str: string): string {
 }
 
 function findAvailablePort(preferred: number): Promise<number> {
-  return new Promise((resolve) => {
-    const server = net.createServer();
-    server.listen(preferred, () => {
-      const port = (server.address() as net.AddressInfo).port;
-      server.close(() => resolve(port));
+  // Try registry first (Phase 2+)
+  try {
+    return Promise.resolve(findAvailableRegistryPort(preferred));
+  } catch {
+    // Fallback: old logic (Phase 1 compatibility)
+    return new Promise((resolve) => {
+      const server = net.createServer();
+      server.listen(preferred, () => {
+        const port = (server.address() as net.AddressInfo).port;
+        server.close(() => resolve(port));
+      });
+      server.on('error', () => {
+        if (preferred >= 4000) {
+          console.error('No available ports found between 3001-4000. Stop other Waymark projects first.');
+          process.exit(1);
+        }
+        resolve(findAvailablePort(preferred + 1));
+      });
     });
-    server.on('error', () => {
-      if (preferred >= 3010) {
-        console.error('No available ports found between 3001-3010. Stop other Waymark projects first.');
-        process.exit(1);
-      }
-      resolve(findAvailablePort(preferred + 1));
-    });
-  });
+  }
 }
 
 export async function run(): Promise<void> {
@@ -129,6 +136,25 @@ export async function run(): Promise<void> {
     port,
     startedAt: new Date().toISOString()
   }, null, 2) + '\n');
+
+  // Register in global registry (Phase 2+)
+  try {
+    registerProject({
+      id: projectName,
+      projectRoot,
+      projectName,
+      port,
+      mcp_pid: mcpProc.pid,
+      api_pid: apiProc.pid,
+      status: 'running',
+      startedAt: new Date().toISOString(),
+      hostname: require('os').hostname(),
+      user: process.env.USER || 'unknown',
+    });
+  } catch (err) {
+    console.warn('Warning: failed to register in global registry:', err instanceof Error ? err.message : String(err));
+    // Continue anyway — registry is optional (backward compat)
+  }
 
   // Open browser after short delay for server startup
   setTimeout(() => {

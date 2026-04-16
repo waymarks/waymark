@@ -17,9 +17,6 @@
     .badge-write_file { background: #7c3a00; color: #ffb347; }
     .badge-read_file  { background: #002f5c; color: #5ab4ff; }
     .badge-bash       { background: #222; color: #aaa; border: 1px solid #444; }
-     .event-execution  { opacity: 1; }
-     .event-observation { opacity: 0.6; background: #0a0a0a; }
-     .observation-label { display: inline-block; padding: 1px 4px; background: #333; color: #999; font-size: 10px; border-radius: 2px; margin-left: 4px; }
     .decision-block    { background: #5c0000; color: #ff6b6b; }
     .decision-pending  { background: #4a3800; color: #ffd166; }
     .decision-rejected { background: #3a0000; color: #ff9999; }
@@ -84,25 +81,6 @@
       background: #7f0000; color: #ef9a9a; border-radius: 3px;
       padding: 1px 6px; font-size: 13px; margin-left: 8px;
     }
-
-    /* Phase 2: Hub navigation sidebar */
-    #hub-nav { display: none; position: fixed; left: 0; top: 0; width: 200px; height: 100vh; background: #0a0a0a; border-right: 1px solid #222; padding: 12px; overflow-y: auto; }
-    #hub-nav.open { display: block; }
-    #main-content { margin-left: 0; }
-    #main-content.with-nav { margin-left: 200px; }
-    #hub-toggle { position: fixed; left: 8px; top: 8px; background: none; border: 1px solid #333; color: #888; padding: 4px 6px; cursor: pointer; font-size: 12px; border-radius: 3px; z-index: 1000; }
-    #hub-nav h3 { font-size: 11px; color: #666; margin: 12px 0 8px; text-transform: uppercase; letter-spacing: 0.05em; }
-    .project-list { list-style: none; padding: 0; }
-    .project-item { padding: 6px 4px; margin: 2px 0; border-radius: 2px; cursor: pointer; font-size: 12px; border-left: 2px solid transparent; }
-    .project-item.running { color: #81c784; border-left-color: #4caf50; }
-    .project-item.running:hover { background: #1a1a1a; }
-    .project-item.paused { color: #ffd166; border-left-color: #ffa000; }
-    .project-item.paused:hover { background: #1a1a1a; }
-    .project-item.stopped { color: #888; border-left-color: #555; }
-    .project-item.stopped:hover { background: #1a1a1a; }
-    .project-item.current { background: #1a1a1a; border-left-color: #5ab4ff; }
-    .project-port { font-size: 10px; color: #555; margin-left: 4px; }
-
   </style>
 </head>
 <body>
@@ -112,47 +90,6 @@
     <span id="count-display">loading...</span>
     <span id="refresh-display"></span>
   </div>
-  <div style="margin-bottom:16px;font-size:12px">
-    <!-- Phase 1: Event type filters -->
-    <div style="margin-bottom:12px">
-      <span style="color:#888">Event:</span>
-      <label style="margin-left:8px"><input type="checkbox" id="filter-execution" checked> Execution</label>
-      <label style="margin-left:12px"><input type="checkbox" id="filter-observation" checked> Observation</label>
-    </div>
-    
-    <!-- Phase 3: Status and tool filters -->
-    <div style="margin-bottom:12px">
-      <span style="color:#888">Status:</span>
-      <select id="filter-status" style="margin-left:8px;padding:2px;font-family:monospace;font-size:11px;background:#1a1a1a;color:#d0d0d0;border:1px solid #333">
-        <option value="">All Statuses</option>
-        <option value="pending">Pending</option>
-        <option value="success">Success</option>
-        <option value="rejected">Rejected</option>
-      </select>
-    </div>
-
-    <div style="margin-bottom:12px">
-      <span style="color:#888">Tool:</span>
-      <select id="filter-tool" style="margin-left:8px;padding:2px;font-family:monospace;font-size:11px;background:#1a1a1a;color:#d0d0d0;border:1px solid #333">
-        <option value="">All Tools</option>
-        <option value="write_file">write_file</option>
-        <option value="read_file">read_file</option>
-        <option value="bash">bash</option>
-      </select>
-    </div>
-
-    <div style="margin-bottom:12px">
-      <span style="color:#888">Search:</span>
-      <input type="text" id="filter-search" placeholder="action ID or path..." style="margin-left:8px;padding:2px;font-family:monospace;font-size:11px;background:#1a1a1a;color:#d0d0d0;border:1px solid #333;width:200px">
-    </div>
-  </div>
-
-  <button id="hub-toggle">📋</button>
-  <nav id="hub-nav">
-    <h3>Projects</h3>
-    <ul id="project-list" class="project-list"></ul>
-  </nav>
-  <div id="main-content">
   <table>
     <thead>
       <tr>
@@ -180,7 +117,6 @@
 
   <div id="status-bar">auto-refresh every 3s</div>
 
-  </div>
   <script>
     function timeAgo(dateStr) {
       const now = new Date();
@@ -334,17 +270,7 @@
         return;
       }
 
-      // Get filter state
-      const showExecution = document.getElementById('filter-execution').checked;
-      const showObservation = document.getElementById('filter-observation').checked;
-
-      const filteredActions = actions.filter(row => {
-        const eventType = row.event_type || 'execution';
-        if (eventType === 'observation') return showObservation;
-        return showExecution;
-      });
-
-      const rows = filteredActions.map(row => {
+      const rows = actions.map(row => {
         const isWriteFile = row.tool_name === 'write_file';
         const isNewFile = isWriteFile && !row.before_snapshot;
         const isPending = row.decision === 'pending' && row.status === 'pending';
@@ -352,8 +278,6 @@
         const isRejected = row.status === 'rejected';
         const isBlocked = row.decision === 'block';
         const canRollback = isWriteFile && !row.rolled_back && !isBlocked && !isPending && !isApproved && row.status === 'success' && !row.approved_by;
-        const eventType = row.event_type || 'execution';
-        const isObservation = eventType === 'observation';
 
         let actionCell;
         if (isPending) {
@@ -377,12 +301,9 @@
           ? `<span style="color:#666;font-size:11px">${row.stdout.slice(0, 100).replace(/\n/g, '↵')}</span>`
           : `<span style="color:#333">—</span>`;
 
-        const rowClass = `event-${eventType}`;
-        const obsLabel = isObservation ? '<span class="observation-label">plan mode</span>' : '';
-
-        return `<tr class="${rowClass}">
+        return `<tr>
           <td style="white-space:nowrap;color:#555">${timeAgo(row.created_at)}</td>
-          <td>${toolBadge(row.tool_name)}${obsLabel}</td>
+          <td>${toolBadge(row.tool_name)}</td>
           <td>${decisionBadge(row)}</td>
           <td>${getTargetDisplay(row)}</td>
           <td>${statusLabel(row.status)}${row.error_message ? `<br><span style="color:#666;font-size:11px">${row.error_message.slice(0,80)}</span>` : ''}</td>
@@ -390,11 +311,6 @@
           <td style="white-space:nowrap">${actionCell}</td>
         </tr>`;
       });
-
-      if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty">No actions match current filter.</td></tr>';
-        return;
-      }
 
       tbody.innerHTML = rows.join('');
 
@@ -424,34 +340,15 @@
 
     async function refresh() {
       try {
-        // Build query string from filter values
-        const status = document.getElementById('filter-status').value;
-        const tool = document.getElementById('filter-tool').value;
-        const search = document.getElementById('filter-search').value;
-        
-        const params = new URLSearchParams();
-        if (status) params.append('status', status);
-        if (tool) params.append('tool_name', tool);
-        if (search) params.append('search', search);
-        params.append('page', '1');
-        params.append('limit', '100');
-
-        // Fetch paginated data
-        const [paginationRes, countRes] = await Promise.all([
-          fetch(`/api/actions/paginated?${params}`),
+        const [actionsRes, countRes] = await Promise.all([
+          fetch('/api/actions'),
           fetch('/api/actions?count=true'),
         ]);
-        
-        const pagination = await paginationRes.json();
+        const actions = await actionsRes.json();
         const { count } = await countRes.json();
-        
-        const actions = pagination.actions || [];
         renderActions(Array.isArray(actions) ? actions : []);
-        
-        const display = status || tool ? `${actions.length} filtered` : `${actions.length} action(s)`;
-        document.getElementById('count-display').textContent = display;
+        document.getElementById('count-display').textContent = `${actions.length} action(s)`;
         document.getElementById('refresh-display').textContent = 'last refresh: ' + new Date().toLocaleTimeString();
-        
         const badge = document.getElementById('pending-badge');
         badge.style.display = count > 0 ? 'inline' : 'none';
         badge.textContent = `[${count} pending]`;
@@ -527,64 +424,6 @@
     refresh();
     loadProjectName();
     setInterval(refresh, 3000);
-
-    // Filter event listeners
-    document.getElementById('filter-execution').addEventListener('change', refresh);
-    document.getElementById('filter-observation').addEventListener('change', refresh);
-    
-    // Phase 3: New filter listeners
-    document.getElementById('filter-status').addEventListener('change', refresh);
-    document.getElementById('filter-tool').addEventListener('change', refresh);
-    document.getElementById('filter-search').addEventListener('input', () => {
-      clearTimeout(window.filterSearchTimeout);
-      window.filterSearchTimeout = setTimeout(refresh, 500);
-    });
-
-    // Phase 2: Hub navigation sidebar
-    function loadHubNav() {
-      fetch('/api/hub/projects')
-        .then(r => r.json())
-        .then(projects => {
-          const list = document.getElementById('project-list');
-          if (!projects || projects.length === 0) {
-            list.innerHTML = '<li style="color:#555;padding:6px 4px">no projects</li>';
-            return;
-          }
-
-          const current = document.getElementById('project-name').textContent.split('—')[1]?.trim();
-          list.innerHTML = projects.map(p => {
-            const isCurrent = current && p.projectName.includes(current);
-            const statusClass = p.status === 'running' ? 'running' : p.status === 'paused' ? 'paused' : 'stopped';
-            const activeClass = isCurrent ? ' current' : '';
-            const icon = p.status === 'running' ? '🟢' : p.status === 'paused' ? '⏸️ ' : '🔴';
-            return `<li class="project-item ${statusClass}${activeClass}" data-port="${p.port}">${icon} ${p.id}<span class="project-port">${p.port}</span></li>`;
-          }).join('');
-
-          // Add click handlers
-          list.querySelectorAll('.project-item').forEach(item => {
-            item.addEventListener('click', () => {
-              const port = item.dataset.port;
-              window.location.href = `http://localhost:${port}`;
-            });
-          });
-        })
-        .catch(() => {
-          // Hub projects not available — this is Phase 2 feature (optional)
-          document.getElementById('hub-toggle').style.display = 'none';
-        });
-    }
-
-    // Hub toggle button
-    document.getElementById('hub-toggle').addEventListener('click', () => {
-      const nav = document.getElementById('hub-nav');
-      const content = document.getElementById('main-content');
-      nav.classList.toggle('open');
-      content.classList.toggle('with-nav');
-      loadHubNav();
-    });
-
-    // Load hub projects on startup (lazy)
-    setTimeout(loadHubNav, 2000);
   </script>
 </body>
 </html>

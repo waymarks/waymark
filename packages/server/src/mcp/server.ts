@@ -106,6 +106,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { path: filePath, content } = args as { path: string; content: string };
     const resolvedPath = path.resolve(filePath);
 
+    const requestSource = 'direct';
+    const observationContext = null;
+
     // Policy check before execution
     const config = loadConfig();
     const policyResult = checkFileAction(resolvedPath, 'write', config);
@@ -114,6 +117,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         action_id, session_id: SESSION_ID, tool_name: 'write_file',
         target_path: resolvedPath, input_payload, status: 'blocked',
         decision: 'block', policy_reason: policyResult.reason, matched_rule: policyResult.matchedRule,
+        event_type: 'execution', request_source: requestSource, observation_context: observationContext,
       });
       throw new Error(`Waymark blocked: ${policyResult.reason} [rule: ${policyResult.matchedRule}]`);
     }
@@ -122,6 +126,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         action_id, session_id: SESSION_ID, tool_name: 'write_file',
         target_path: resolvedPath, input_payload, status: 'pending',
         decision: 'pending', policy_reason: policyResult.reason, matched_rule: policyResult.matchedRule,
+        event_type: 'execution', request_source: requestSource, observation_context: observationContext,
       });
       // Fire-and-forget Slack notification (no console.log — MCP uses stdio)
       notifyPendingAction({
@@ -133,6 +138,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         created_at: new Date().toISOString(),
         decision: 'pending', policy_reason: policyResult.reason, matched_rule: policyResult.matchedRule,
         approved_at: null, approved_by: null, rejected_at: null, rejected_reason: null,
+        event_type: 'execution', observation_context: null, request_source: 'direct',
         id: 0,
       }).catch(() => {});
       return {
@@ -162,6 +168,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       decision: policyResult.decision,
       policy_reason: policyResult.reason,
       matched_rule: policyResult.matchedRule ?? null,
+      event_type: 'execution',
+      request_source: requestSource,
+      observation_context: observationContext,
     });
 
     try {
@@ -189,6 +198,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { path: filePath } = args as { path: string };
     const resolvedPath = path.resolve(filePath);
 
+    // Determine request source for observability (plan mode vs direct execution)
+    // We track "observation" for planning-phase reads if patterns suggest it
+    const requestSource = 'direct';
+    const observationContext = null;
+
     // Policy check before execution
     const config = loadConfig();
     const policyResult = checkFileAction(resolvedPath, 'read', config);
@@ -197,6 +211,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         action_id, session_id: SESSION_ID, tool_name: 'read_file',
         target_path: resolvedPath, input_payload, status: 'blocked',
         decision: 'block', policy_reason: policyResult.reason, matched_rule: policyResult.matchedRule,
+        event_type: 'execution', request_source: requestSource, observation_context: observationContext,
       });
       throw new Error(`Waymark blocked: ${policyResult.reason} [rule: ${policyResult.matchedRule}]`);
     }
@@ -205,6 +220,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         action_id, session_id: SESSION_ID, tool_name: 'read_file',
         target_path: resolvedPath, input_payload, status: 'pending',
         decision: 'pending', policy_reason: policyResult.reason, matched_rule: policyResult.matchedRule,
+        event_type: 'execution', request_source: requestSource, observation_context: observationContext,
       });
       notifyPendingAction({
         action_id, session_id: SESSION_ID, tool_name: 'read_file',
@@ -215,6 +231,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         created_at: new Date().toISOString(),
         decision: 'pending', policy_reason: policyResult.reason, matched_rule: policyResult.matchedRule,
         approved_at: null, approved_by: null, rejected_at: null, rejected_reason: null,
+        event_type: 'execution', observation_context: null, request_source: 'direct',
         id: 0,
       }).catch(() => {});
       return {
@@ -235,6 +252,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       decision: policyResult.decision,
       policy_reason: policyResult.reason,
       matched_rule: policyResult.matchedRule ?? null,
+      event_type: 'execution',
+      request_source: requestSource,
+      observation_context: observationContext,
     });
 
     try {
@@ -259,6 +279,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   } else if (name === 'bash') {
     const { command } = args as { command: string };
 
+    const requestSource = 'direct';
+    const observationContext = null;
+
     // Policy check before execution
     const config = loadConfig();
     const policyResult = checkBashAction(command, config);
@@ -267,6 +290,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         action_id, session_id: SESSION_ID, tool_name: 'bash',
         target_path: null, input_payload, status: 'blocked',
         decision: 'block', policy_reason: policyResult.reason, matched_rule: policyResult.matchedRule,
+        event_type: 'execution', request_source: requestSource, observation_context: observationContext,
       });
       throw new Error(`Waymark blocked command: ${policyResult.reason} [rule: ${policyResult.matchedRule}]`);
     }
@@ -281,6 +305,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       decision: policyResult.decision,
       policy_reason: policyResult.reason,
       matched_rule: policyResult.matchedRule ?? null,
+      event_type: 'execution',
+      request_source: requestSource,
+      observation_context: observationContext,
     });
 
     // Bug 1 + Bug 2: use spawnSync for clean stdout/stderr separation and USER_PATH

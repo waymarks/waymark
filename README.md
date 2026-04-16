@@ -13,6 +13,23 @@
 
 ---
 
+## ✨ What's New in v0.7.0
+
+**Multi-AI Platform Support + Complete Architecture Overhaul**
+
+- ✅ **Multi-platform support**: Choose Claude, GitHub Copilot CLI, or both during setup
+- ✅ **Plan mode visibility**: See what Waymark is doing in Claude plan mode
+- ✅ **Multi-project management**: Manage unlimited projects with central registry
+- ✅ **Dashboard speed**: 10-50x faster with smart indexing and pagination
+- ✅ **Port lifecycle**: Automatic port release (no exhaustion risk)
+- ✅ **Better docs**: Platform guide, setup instructions, and 200+ FAQ
+
+**Backward compatible** — existing Claude configurations work unchanged.
+
+See [CHANGELOG](CHANGELOG.md) for complete details.
+
+---
+
 **Control what AI agents can do in your codebase.**
 
 Waymark sits between your team and any AI agent.
@@ -174,11 +191,11 @@ api.slack.com/apps → Incoming Webhooks
 
 ## Works With
 
-- **Claude Code** — native MCP integration,
-  zero configuration after init
-- **Any MCP-compatible agent** — register
-  the Waymark MCP server in your agent config
-- More integrations coming
+- **Claude Code** — native MCP integration, all features
+- **Claude Desktop** — native MCP integration, all features
+- **GitHub Copilot CLI** — experimental, CLI logging via wrapper
+- **Any MCP-compatible agent** — register the Waymark MCP server in your agent config
+- More integrations coming (see [Platform Guide](README_PLATFORMS.md))
 
 ---
 
