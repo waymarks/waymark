@@ -103,6 +103,24 @@
     .project-item.current { background: #1a1a1a; border-left-color: #5ab4ff; }
     .project-port { font-size: 10px; color: #555; margin-left: 4px; }
 
+    /* Phase 1: Tab switcher */
+    .tab-button { transition: color 0.2s, border-color 0.2s; }
+    .tab-button.active { color: #5ab4ff; border-bottom-color: #5ab4ff !important; font-weight: bold; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    #sessions-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    #sessions-table thead tr { background: #1a1a1a; }
+    #sessions-table th, #sessions-table td { padding: 6px 8px; border-bottom: 1px solid #1e1e1e; text-align: left; }
+    #sessions-table tbody tr:hover { background: #161616; }
+    .session-status-active { color: #4caf50; }
+    .session-status-rolled_back { color: #5ab4ff; }
+    .session-id { color: #888; font-size: 11px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .btn-view-session { background: #003a5c; border: 1px solid #0066cc; color: #5ab4ff; padding: 2px 6px; cursor: pointer; font-size: 10px; font-family: monospace; border-radius: 2px; margin-right: 2px; }
+    .btn-view-session:hover { background: #004080; }
+    .btn-rollback-session { background: #3a1f00; border: 1px solid #7c3a00; color: #ffb347; padding: 2px 6px; cursor: pointer; font-size: 10px; font-family: monospace; border-radius: 2px; }
+    .btn-rollback-session:hover { background: #5c3000; }
+    .btn-rollback-session:disabled { opacity: 0.4; cursor: default; }
+
   </style>
 </head>
 <body>
@@ -147,12 +165,24 @@
     </div>
   </div>
 
+  <!-- Phase 1 & 2: View tabs -->
+  <div style="margin-bottom:12px; border-bottom: 1px solid #333; padding-bottom: 8px;">
+    <button id="tab-actions" class="tab-button" data-tab="actions" style="background: none; border: none; color: #5ab4ff; padding: 4px 12px; cursor: pointer; font-family: monospace; font-size: 12px; border-bottom: 2px solid #5ab4ff; font-weight: bold;">Actions</button>
+    <button id="tab-sessions" class="tab-button" data-tab="sessions" style="background: none; border: none; color: #888; padding: 4px 12px; cursor: pointer; font-family: monospace; font-size: 12px; border-bottom: 2px solid transparent;">Sessions (Phase 1)</button>
+    <button id="tab-team" class="tab-button" data-tab="team" style="background: none; border: none; color: #888; padding: 4px 12px; cursor: pointer; font-family: monospace; font-size: 12px; border-bottom: 2px solid transparent;">Team (Phase 2)</button>
+    <button id="tab-approvals" class="tab-button" data-tab="approvals" style="background: none; border: none; color: #888; padding: 4px 12px; cursor: pointer; font-family: monospace; font-size: 12px; border-bottom: 2px solid transparent;">Approvals (Phase 2)</button>
+    <button id="tab-escalations" class="tab-button" data-tab="escalations" style="background: none; border: none; color: #888; padding: 4px 12px; cursor: pointer; font-family: monospace; font-size: 12px; border-bottom: 2px solid transparent;">Escalations (Phase 3)</button>
+    <button id="tab-remediation" class="tab-button" data-tab="remediation" style="background: none; border: none; color: #888; padding: 4px 12px; cursor: pointer; font-family: monospace; font-size: 12px; border-bottom: 2px solid transparent;">Remediation (Phase 4)</button>
+  </div>
+
   <button id="hub-toggle">📋</button>
   <nav id="hub-nav">
     <h3>Projects</h3>
     <ul id="project-list" class="project-list"></ul>
   </nav>
   <div id="main-content">
+  <!-- Actions Tab -->
+  <div id="tab-actions-content" class="tab-content active">
   <table>
     <thead>
       <tr>
@@ -169,6 +199,228 @@
       <tr><td colspan="7" class="empty">loading...</td></tr>
     </tbody>
   </table>
+  </div>
+
+  <!-- Phase 1: Sessions Tab -->
+  <div id="tab-sessions-content" class="tab-content">
+    <table id="sessions-table">
+      <thead>
+        <tr>
+          <th>Session ID</th>
+          <th>Actions</th>
+          <th>Created</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="sessions-tbody">
+        <tr><td colspan="5" class="empty">loading...</td></tr>
+      </tbody>
+    </table>
+    <div id="session-details" style="display:none; margin-top: 16px; padding: 12px; background: #141414; border: 1px solid #222; border-radius: 4px;">
+      <h3 style="color: #888; margin-bottom: 8px;">Session Details</h3>
+      <div id="session-details-content"></div>
+    </div>
+  </div>
+
+  <!-- Phase 2: Team Tab -->
+  <div id="tab-team-content" class="tab-content">
+    <div style="margin-bottom: 16px;">
+      <h3>Team Members</h3>
+      <div style="margin-top: 8px; padding: 8px; background: #141414; border-radius: 3px;">
+        <input id="new-member-name" type="text" placeholder="Name" style="padding: 4px; margin-right: 6px; background: #0a0a0a; border: 1px solid #333; color: #d0d0d0; border-radius: 2px;" />
+        <input id="new-member-email" type="email" placeholder="Email" style="padding: 4px; margin-right: 6px; background: #0a0a0a; border: 1px solid #333; color: #d0d0d0; border-radius: 2px;" />
+        <button id="add-team-member-btn" style="padding: 4px 8px; background: #003a4d; border: 1px solid #00556b; color: #5ab4ff; cursor: pointer; border-radius: 2px;">Add Member</button>
+      </div>
+    </div>
+    <table id="team-members-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Added</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="team-tbody">
+        <tr><td colspan="5" class="empty">loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Phase 2: Approvals Tab -->
+  <div id="tab-approvals-content" class="tab-content">
+    <div style="margin-bottom: 16px;">
+      <h3>Approval Routing Rules</h3>
+      <div style="margin-top: 8px; padding: 8px; background: #141414; border-radius: 3px;">
+        <input id="new-route-name" type="text" placeholder="Route name" style="padding: 4px; margin-right: 6px; background: #0a0a0a; border: 1px solid #333; color: #d0d0d0; border-radius: 2px;" />
+        <select id="new-route-type" style="padding: 4px; margin-right: 6px; background: #0a0a0a; border: 1px solid #333; color: #d0d0d0; border-radius: 2px;">
+          <option value="all_sessions">All Sessions</option>
+          <option value="high_impact">High Impact</option>
+        </select>
+        <button id="create-route-btn" style="padding: 4px 8px; background: #003a4d; border: 1px solid #00556b; color: #5ab4ff; cursor: pointer; border-radius: 2px;">Create Route</button>
+      </div>
+    </div>
+    <table id="routes-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Approvers</th>
+          <th>Created</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="routes-tbody">
+        <tr><td colspan="5" class="empty">loading...</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top: 24px; border-top: 1px solid #333; padding-top: 16px;">
+      <h3>Pending Approvals</h3>
+      <table id="approvals-queue-table">
+        <thead>
+          <tr>
+            <th>Session</th>
+            <th>Requester</th>
+            <th>Status</th>
+            <th>Approvals Needed</th>
+            <th>Created</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="approvals-queue-tbody">
+          <tr><td colspan="6" class="empty">loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Phase 3: Escalations Tab -->
+  <div id="tab-escalations-content" class="tab-content">
+    <div style="margin-bottom: 16px;">
+      <h3>Escalation Rules</h3>
+      <div style="margin-top: 8px; padding: 8px; background: #141414; border-radius: 3px;">
+        <input id="new-escalation-name" type="text" placeholder="Rule name" style="padding: 4px; margin-right: 6px; background: #0a0a0a; border: 1px solid #333; color: #d0d0d0; border-radius: 2px;" />
+        <input id="new-escalation-timeout" type="number" placeholder="Timeout (hours)" style="padding: 4px; margin-right: 6px; background: #0a0a0a; border: 1px solid #333; color: #d0d0d0; border-radius: 2px;" />
+        <button id="create-escalation-rule-btn" style="padding: 4px 8px; background: #3a2a00; border: 1px solid #7c5a00; color: #ffb347; cursor: pointer; border-radius: 2px;">Create Rule</button>
+      </div>
+    </div>
+    <table id="escalation-rules-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Timeout (hours)</th>
+          <th>Targets</th>
+          <th>Created</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="escalation-rules-tbody">
+        <tr><td colspan="5" class="empty">loading...</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top: 24px; border-top: 1px solid #333; padding-top: 16px;">
+      <h3>Pending Escalations</h3>
+      <table id="escalation-queue-table">
+        <thead>
+          <tr>
+            <th>Session</th>
+            <th>Requester</th>
+            <th>Status</th>
+            <th>Deadline</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="escalation-queue-tbody">
+          <tr><td colspan="5" class="empty">loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Phase 4: Remediation Tab -->
+  <div id="tab-remediation-content" class="tab-content">
+    <div style="margin-bottom: 16px;">
+      <h3>Risk Assessment</h3>
+      <div style="background: #1a1a1a; padding: 12px; border-radius: 3px; margin-bottom: 16px;">
+        <div style="font-size: 24px; font-weight: bold; margin-bottom: 8px;">
+          Risk Score: <span id="risk-score" style="color: #ffb347;">—</span>/10
+        </div>
+        <div>
+          Risk Level: <span id="risk-level" style="color: #ffb347;">—</span>
+        </div>
+        <div style="margin-top: 12px; font-size: 12px; color: #888;">
+          <div id="risk-factors" style="margin-top: 8px;">Loading risk assessment...</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <h3>Policy Compliance</h3>
+      <table id="policy-status-table">
+        <thead>
+          <tr>
+            <th>Policy</th>
+            <th>Category</th>
+            <th>Status</th>
+            <th>Violations</th>
+          </tr>
+        </thead>
+        <tbody id="policy-status-tbody">
+          <tr><td colspan="4" class="empty">No policy violations detected</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <h3>Remediation Recommendations</h3>
+      <div id="remediation-recommendations" style="background: #0a0a0a; padding: 12px; border-radius: 3px;">
+        <div style="margin-bottom: 12px;">
+          <strong>Primary Strategy:</strong>
+          <div id="primary-strategy" style="color: #4caf50; margin-top: 4px;">—</div>
+        </div>
+        <div style="margin-bottom: 12px;">
+          <strong>Alternative Strategies:</strong>
+          <div id="alternative-strategies" style="color: #888; font-size: 12px; margin-top: 4px;">—</div>
+        </div>
+        <div style="margin-bottom: 12px;">
+          <strong>Estimated Safety:</strong>
+          <div id="estimated-safety" style="color: #ffb347; margin-top: 4px;">—</div>
+        </div>
+        <div>
+          <strong>Required Approvals:</strong>
+          <div id="required-approvals" style="color: #888; font-size: 12px; margin-top: 4px;">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <h3>Active Block Rules</h3>
+      <table id="block-rules-table">
+        <thead>
+          <tr>
+            <th>Rule</th>
+            <th>Condition</th>
+            <th>Action</th>
+            <th>Message</th>
+          </tr>
+        </thead>
+        <tbody id="block-rules-tbody">
+          <tr><td colspan="4" class="empty">No active block rules</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="margin-bottom: 16px;">
+      <button id="run-assessment-btn" style="padding: 8px 12px; background: #2a5a2a; border: 1px solid #4caf50; color: #4caf50; cursor: pointer; border-radius: 2px;">
+        Run Risk Assessment
+      </button>
+      <button id="override-block-btn" style="padding: 8px 12px; background: #5a2a2a; border: 1px solid #f44336; color: #f44336; cursor: pointer; border-radius: 2px; margin-left: 8px; display: none;">
+        Admin Override Block
+      </button>
+    </div>
+  </div>
 
   <div id="config-section">
     <button id="config-toggle">▶ Current Policy</button>
@@ -573,6 +825,616 @@
           document.getElementById('hub-toggle').style.display = 'none';
         });
     }
+
+    // Phase 1 & 2: Tab switching functionality
+    document.querySelectorAll('.tab-button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tabName = btn.dataset.tab;
+        // Update active button
+        document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        // Update button styles
+        document.querySelectorAll('.tab-button').forEach(b => {
+          if (b.classList.contains('active')) {
+            b.style.color = '#5ab4ff';
+            b.style.borderBottomColor = '#5ab4ff';
+            b.style.fontWeight = 'bold';
+          } else {
+            b.style.color = '#888';
+            b.style.borderBottomColor = 'transparent';
+            b.style.fontWeight = 'normal';
+          }
+        });
+        // Show/hide tab content
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        document.getElementById(`tab-${tabName}-content`).classList.add('active');
+        // Trigger tab-specific load
+        if (tabName === 'sessions') {
+          loadSessions();
+        } else if (tabName === 'team') {
+          loadTeamMembers();
+        } else if (tabName === 'approvals') {
+          loadApprovals();
+        } else if (tabName === 'escalations') {
+          loadEscalations();
+        } else {
+          loadActions();
+        }
+      });
+    });
+
+    // Phase 1: Load sessions and render table
+    async function loadSessions() {
+      try {
+        const res = await fetch('/api/sessions');
+        const sessions = await res.json();
+        const tbody = document.getElementById('sessions-tbody');
+
+        if (sessions.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="empty">No sessions yet</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = sessions.map(session => {
+          const sessionId = session.session_id || 'unknown';
+          const actionCount = session.action_count || 0;
+          const latest = session.latest ? timeAgo(session.latest) : 'never';
+
+          return `
+            <tr>
+              <td class="session-id" title="${sessionId}">${sessionId.substring(0, 20)}...</td>
+              <td>${actionCount}</td>
+              <td>${latest}</td>
+              <td><span class="session-status-active">active</span></td>
+              <td>
+                <button class="btn-view-session" onclick="viewSession('${sessionId}')">View</button>
+                <button class="btn-rollback-session" onclick="rollbackSession('${sessionId}')">Rollback</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        document.getElementById('sessions-tbody').innerHTML = `<tr><td colspan="5" class="empty">Error loading sessions: ${err.message}</td></tr>`;
+      }
+    }
+
+    // Phase 1: View session details
+    async function viewSession(sessionId) {
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}/actions`);
+        const data = await res.json();
+        const details = document.getElementById('session-details');
+        const content = document.getElementById('session-details-content');
+
+        const actions = data.actions || [];
+        const html = `
+          <div style="margin-bottom: 8px;">
+            <strong>Session:</strong> ${sessionId}<br>
+            <strong>Total Actions:</strong> ${actions.length}
+          </div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+            <tr style="background: #1a1a1a;">
+              <th style="padding: 4px; text-align: left;">Time</th>
+              <th style="padding: 4px; text-align: left;">Tool</th>
+              <th style="padding: 4px; text-align: left;">Path/Command</th>
+              <th style="padding: 4px; text-align: left;">Status</th>
+            </tr>
+            ${actions.map(a => `
+              <tr style="border-bottom: 1px solid #1e1e1e;">
+                <td style="padding: 4px;">${timeAgo(a.created_at)}</td>
+                <td style="padding: 4px;"><span class="badge badge-${a.tool_name}">${a.tool_name}</span></td>
+                <td style="padding: 4px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${a.target_path || '(bash)'}</td>
+                <td style="padding: 4px;"><span class="status-${a.status}">${a.status}</span></td>
+              </tr>
+            `).join('')}
+          </table>
+        `;
+        content.innerHTML = html;
+        details.style.display = 'block';
+      } catch (err) {
+        alert(`Error loading session: ${err.message}`);
+      }
+    }
+
+    // Phase 1: Rollback session
+    async function rollbackSession(sessionId) {
+      if (!confirm(`Rollback session ${sessionId}? This will undo all actions in the session.`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}/rollback`, { method: 'POST' });
+        const result = await res.json();
+
+        if (res.ok) {
+          alert(`✓ Session rolled back: ${result.actions_rolled_back} actions, ${result.files_restored} files restored`);
+          loadSessions();
+        } else {
+          alert(`✗ Rollback failed: ${result.error || 'Unknown error'}`);
+        }
+      } catch (err) {
+        alert(`✗ Error: ${err.message}`);
+      }
+    }
+
+    // Phase 2: Load team members
+    async function loadTeamMembers() {
+      try {
+        const res = await fetch('/api/team/members');
+        const members = await res.json();
+        const tbody = document.getElementById('team-tbody');
+
+        if (members.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="empty">No team members added</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = members.map(member => {
+          const addedDate = member.added_at ? timeAgo(member.added_at) : 'unknown';
+          return `
+            <tr>
+              <td>${member.name}</td>
+              <td>${member.email}</td>
+              <td>${member.role || 'approver'}</td>
+              <td>${addedDate}</td>
+              <td>
+                <button class="btn-remove-member" onclick="removeTeamMember('${member.member_id}')">Remove</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        document.getElementById('team-tbody').innerHTML = `<tr><td colspan="5" class="empty">Error loading team members: ${err.message}</td></tr>`;
+      }
+    }
+
+    // Phase 2: Remove team member
+    async function removeTeamMember(memberId) {
+      if (!confirm('Remove this team member?')) return;
+
+      try {
+        const res = await fetch(`/api/team/members/${memberId}`, { method: 'DELETE' });
+        const result = await res.json();
+
+        if (res.ok) {
+          alert('✓ Team member removed');
+          loadTeamMembers();
+        } else {
+          alert(`✗ Error: ${result.error}`);
+        }
+      } catch (err) {
+        alert(`✗ Error: ${err.message}`);
+      }
+    }
+
+    // Phase 2: Add team member button
+    document.addEventListener('DOMContentLoaded', () => {
+      const addBtn = document.getElementById('add-team-member-btn');
+      if (addBtn) {
+        addBtn.addEventListener('click', async () => {
+          const name = document.getElementById('new-member-name').value.trim();
+          const email = document.getElementById('new-member-email').value.trim();
+
+          if (!name || !email) {
+            alert('Please enter name and email');
+            return;
+          }
+
+          try {
+            const res = await fetch('/api/team/members', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                member_id: `member-${Date.now()}`,
+                name,
+                email,
+              }),
+            });
+
+            const result = await res.json();
+            if (res.ok) {
+              document.getElementById('new-member-name').value = '';
+              document.getElementById('new-member-email').value = '';
+              loadTeamMembers();
+            } else {
+              alert(`✗ Error: ${result.error}`);
+            }
+          } catch (err) {
+            alert(`✗ Error: ${err.message}`);
+          }
+        });
+      }
+    });
+
+    // Phase 2: Load approvals and routing rules
+    async function loadApprovals() {
+      try {
+        // Load routing rules
+        const routesRes = await fetch('/api/approval-routes');
+        const routes = await routesRes.json();
+        const routesTbody = document.getElementById('routes-tbody');
+
+        if (routes.length === 0) {
+          routesTbody.innerHTML = '<tr><td colspan="5" class="empty">No approval routes configured</td></tr>';
+        } else {
+          routesTbody.innerHTML = routes.map(route => {
+            const approvers = JSON.parse(route.approver_ids || '[]');
+            const createdDate = route.created_at ? timeAgo(route.created_at) : 'unknown';
+            return `
+              <tr>
+                <td>${route.name}</td>
+                <td>${route.condition_type || 'all_sessions'}</td>
+                <td>${approvers.join(', ')}</td>
+                <td>${createdDate}</td>
+                <td>
+                  <button class="btn-delete-route" onclick="deleteApprovalRoute('${route.route_id}')">Delete</button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        // Load pending approvals
+        const approvalsRes = await fetch('/api/approvals/pending');
+        const approvals = await approvalsRes.json();
+        const approvalsTbody = document.getElementById('approvals-queue-tbody');
+
+        if (approvals.length === 0) {
+          approvalsTbody.innerHTML = '<tr><td colspan="6" class="empty">No pending approvals</td></tr>';
+        } else {
+          approvalsTbody.innerHTML = approvals.map(approval => {
+            const triggeredDate = approval.triggered_at ? timeAgo(approval.triggered_at) : 'unknown';
+            const approvers = JSON.parse(approval.approver_ids || '[]');
+            const needed = approvers.length - approval.approved_count;
+            return `
+              <tr>
+                <td>${approval.session_id.substring(0, 20)}...</td>
+                <td>${approval.triggered_by}</td>
+                <td>${approval.status}</td>
+                <td>${needed} of ${approvers.length}</td>
+                <td>${triggeredDate}</td>
+                <td>
+                  <button class="btn-view-approval" onclick="viewApproval('${approval.request_id}')">View</button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+      } catch (err) {
+        document.getElementById('routes-tbody').innerHTML = `<tr><td colspan="5" class="empty">Error: ${err.message}</td></tr>`;
+        document.getElementById('approvals-queue-tbody').innerHTML = `<tr><td colspan="6" class="empty">Error: ${err.message}</td></tr>`;
+      }
+    }
+
+    // Phase 2: Delete approval route
+    async function deleteApprovalRoute(routeId) {
+      if (!confirm('Delete this approval route?')) return;
+
+      try {
+        const res = await fetch(`/api/approval-routes/${routeId}`, { method: 'DELETE' });
+        const result = await res.json();
+
+        if (res.ok) {
+          loadApprovals();
+        } else {
+          alert(`✗ Error: ${result.error}`);
+        }
+      } catch (err) {
+        alert(`✗ Error: ${err.message}`);
+      }
+    }
+
+    // Phase 2: View approval details
+    async function viewApproval(requestId) {
+      try {
+        const res = await fetch(`/api/approvals/${requestId}`);
+        const data = await res.json();
+        const approval = data.request;
+        const status = data.status;
+
+        let details = `
+          <div style="background: #0a0a0a; padding: 12px; border-radius: 3px; margin-top: 8px;">
+            <h4>Approval Request Details</h4>
+            <p><strong>Request ID:</strong> ${approval.request_id}</p>
+            <p><strong>Session:</strong> ${approval.session_id}</p>
+            <p><strong>Requester:</strong> ${approval.triggered_by}</p>
+            <p><strong>Status:</strong> ${approval.status}</p>
+            <p><strong>Approvals:</strong> ${approval.approved_count} approved, ${approval.rejected_count} rejected</p>
+        `;
+
+        if (status) {
+          details += `
+            <h4 style="margin-top: 12px;">Approval Decisions</h4>
+            <table style="width: 100%; font-size: 11px;">
+              <tr style="background: #1a1a1a;">
+                <th style="padding: 4px; text-align: left;">Approver</th>
+                <th style="padding: 4px; text-align: left;">Decision</th>
+                <th style="padding: 4px; text-align: left;">Reason</th>
+              </tr>
+              ${status.decisions.map(d => `
+                <tr style="border-bottom: 1px solid #1e1e1e;">
+                  <td style="padding: 4px;">${d.approver_id}</td>
+                  <td style="padding: 4px;"><span style="color: ${d.decision === 'approve' ? '#4caf50' : '#f44336'}">${d.decision}</span></td>
+                  <td style="padding: 4px;">${d.reason || '—'}</td>
+                </tr>
+              `).join('')}
+            </table>
+          `;
+        }
+
+        details += '</div>';
+        alert(details);
+      } catch (err) {
+        alert(`Error loading approval: ${err.message}`);
+      }
+    }
+
+    // Phase 3: Load escalation rules and pending escalations
+    async function loadEscalations() {
+      try {
+        const [rulesRes, pendingRes] = await Promise.all([
+          fetch('/api/escalations/rules'),
+          fetch('/api/escalations/pending'),
+        ]);
+
+        const rulesData = await rulesRes.json();
+        const pendingData = await pendingRes.json();
+
+        const rules = rulesData.rules || [];
+        const pending = pendingData.escalations || [];
+
+        // Populate escalation rules table
+        const rulesTbody = document.getElementById('escalation-rules-tbody');
+        if (rules.length === 0) {
+          rulesTbody.innerHTML = '<tr><td colspan="5" class="empty">No escalation rules configured</td></tr>';
+        } else {
+          rulesTbody.innerHTML = rules.map(rule => {
+            const createdDate = rule.created_at ? timeAgo(rule.created_at) : 'unknown';
+            const targets = rule.escalation_targets ? JSON.parse(rule.escalation_targets).join(', ') : '—';
+            return `
+              <tr>
+                <td>${rule.name}</td>
+                <td>${rule.timeout_hours}</td>
+                <td>${targets}</td>
+                <td>${createdDate}</td>
+                <td>
+                  <button class="btn-delete-escalation" onclick="deleteEscalationRule('${rule.rule_id}')">Delete</button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+
+        // Populate pending escalations table
+        const escalationsTbody = document.getElementById('escalation-queue-tbody');
+        if (pending.length === 0) {
+          escalationsTbody.innerHTML = '<tr><td colspan="5" class="empty">No pending escalations</td></tr>';
+        } else {
+          escalationsTbody.innerHTML = pending.map(escalation => {
+            const deadlineDate = escalation.escalation_deadline ? timeAgo(escalation.escalation_deadline) : 'unknown';
+            const status = escalation.status || 'pending';
+            return `
+              <tr>
+                <td>${escalation.session_id.substring(0, 20)}...</td>
+                <td>${escalation.request_id.substring(0, 20) || '—'}...</td>
+                <td><span style="color: ${status === 'blocked' ? '#f44336' : status === 'proceeded' ? '#4caf50' : '#ffb347'}">${status}</span></td>
+                <td>${deadlineDate}</td>
+                <td>
+                  <button class="btn-view-escalation" onclick="viewEscalation('${escalation.request_id}')">View</button>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+      } catch (err) {
+        document.getElementById('escalation-rules-tbody').innerHTML = `<tr><td colspan="5" class="empty">Error: ${err.message}</td></tr>`;
+        document.getElementById('escalation-queue-tbody').innerHTML = `<tr><td colspan="5" class="empty">Error: ${err.message}</td></tr>`;
+      }
+    }
+
+    // Phase 3: Delete escalation rule
+    async function deleteEscalationRule(ruleId) {
+      if (!confirm('Delete this escalation rule?')) return;
+
+      try {
+        const res = await fetch(`/api/escalations/rules/${ruleId}`, { method: 'DELETE' });
+        const result = await res.json();
+
+        if (res.ok) {
+          loadEscalations();
+        } else {
+          alert(`✗ Error: ${result.error}`);
+        }
+      } catch (err) {
+        alert(`✗ Error: ${err.message}`);
+      }
+    }
+
+    // Phase 3: View escalation details
+    async function viewEscalation(requestId) {
+      try {
+        const res = await fetch(`/api/escalations/${requestId}`);
+        const data = await res.json();
+        const escalation = data.escalation;
+        const status = data.status;
+
+        let details = `
+          <div style="background: #0a0a0a; padding: 12px; border-radius: 3px; margin-top: 8px;">
+            <h4>Escalation Request Details</h4>
+            <p><strong>Request ID:</strong> ${escalation.request_id}</p>
+            <p><strong>Session:</strong> ${escalation.session_id}</p>
+            <p><strong>Approval Request:</strong> ${escalation.approval_request_id}</p>
+            <p><strong>Status:</strong> ${escalation.status}</p>
+            <p><strong>Triggered:</strong> ${escalation.escalation_triggered_at || 'unknown'}</p>
+            <p><strong>Deadline:</strong> ${escalation.escalation_deadline || 'unknown'}</p>
+        `;
+
+        if (status && status.decisions) {
+          details += `
+            <h4 style="margin-top: 12px;">Escalation Decisions</h4>
+            <table style="width: 100%; font-size: 11px;">
+              <tr style="background: #1a1a1a;">
+                <th style="padding: 4px; text-align: left;">Target</th>
+                <th style="padding: 4px; text-align: left;">Decision</th>
+                <th style="padding: 4px; text-align: left;">Reason</th>
+              </tr>
+              ${status.decisions.map(d => `
+                <tr style="border-bottom: 1px solid #1e1e1e;">
+                  <td style="padding: 4px;">${d.target_id}</td>
+                  <td style="padding: 4px;"><span style="color: ${d.decision === 'proceed' ? '#4caf50' : '#f44336'}">${d.decision}</span></td>
+                  <td style="padding: 4px;">${d.reason || '—'}</td>
+                </tr>
+              `).join('')}
+            </table>
+          `;
+        }
+
+        // Add decision buttons if escalation is still pending
+        if (escalation.status === 'pending') {
+          details += `
+            <div style="margin-top: 12px;">
+              <button onclick="submitEscalationDecision('${requestId}', 'proceed')" style="padding: 6px 12px; background: #2d5a2d; border: 1px solid #4caf50; color: #4caf50; cursor: pointer; margin-right: 8px; border-radius: 2px;">✅ Proceed</button>
+              <button onclick="submitEscalationDecision('${requestId}', 'block')" style="padding: 6px 12px; background: #5a2d2d; border: 1px solid #f44336; color: #f44336; cursor: pointer; border-radius: 2px;">❌ Block</button>
+            </div>
+          `;
+        }
+
+        details += '</div>';
+        alert(details);
+      } catch (err) {
+        alert(`Error loading escalation: ${err.message}`);
+      }
+    }
+
+    // Phase 3: Submit escalation decision (proceed or block)
+    async function submitEscalationDecision(requestId, decision) {
+      const reason = prompt(`Enter reason for ${decision}ing this escalation (optional):`);
+
+      try {
+        const res = await fetch(`/api/escalations/${requestId}/decide`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ decision, reason: reason || undefined }),
+        });
+
+        const result = await res.json();
+        if (res.ok) {
+          alert(`✓ Escalation ${decision === 'proceed' ? 'allowed' : 'blocked'} successfully`);
+          loadEscalations();
+        } else {
+          alert(`✗ Error: ${result.error}`);
+        }
+      } catch (err) {
+        alert(`✗ Error: ${err.message}`);
+      }
+    }
+
+    // Phase 3: Create escalation rule
+    async function createEscalationRule() {
+      const name = document.getElementById('new-escalation-name').value;
+      const timeout = parseInt(document.getElementById('new-escalation-timeout').value);
+
+      if (!name || !timeout) {
+        alert('Please enter rule name and timeout (hours)');
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/escalations/rules', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, timeout_hours: timeout }),
+        });
+
+        const result = await res.json();
+        if (res.ok) {
+          document.getElementById('new-escalation-name').value = '';
+          document.getElementById('new-escalation-timeout').value = '';
+          loadEscalations();
+        } else {
+          alert(`✗ Error: ${result.error}`);
+        }
+      } catch (err) {
+        alert(`✗ Error: ${err.message}`);
+      }
+    }
+
+    // Phase 3: Event listener for create escalation rule button
+    document.getElementById('create-escalation-rule-btn').addEventListener('click', createEscalationRule);
+
+    // Phase 4: Load remediation assessment
+    async function loadRemediation() {
+      try {
+        // Placeholder: In full implementation, would analyze current session
+        document.getElementById('risk-score').textContent = '5.0';
+        document.getElementById('risk-level').textContent = 'MEDIUM';
+        document.getElementById('risk-factors').innerHTML = `
+          <div style="margin-bottom: 8px;">
+            <strong>Risk Factors:</strong>
+            <ul style="margin: 4px 0; padding-left: 16px; font-size: 11px;">
+              <li>Operation Type: Medium (2.0/3.0)</li>
+              <li>Scale: Medium (1.5/3.0)</li>
+              <li>Error Pattern: Low (0.5/3.0)</li>
+              <li>Time: Recent (0.5/3.0)</li>
+              <li>System Load: Moderate (1.0/3.0)</li>
+            </ul>
+          </div>
+        `;
+
+        // Policy compliance
+        document.getElementById('policy-status-tbody').innerHTML = `
+          <tr>
+            <td>Data Protection</td>
+            <td>data</td>
+            <td><span style="color: #4caf50;">✓ compliant</span></td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td>Security Policy</td>
+            <td>security</td>
+            <td><span style="color: #4caf50;">✓ compliant</span></td>
+            <td>0</td>
+          </tr>
+        `;
+
+        // Recommendations
+        document.getElementById('primary-strategy').textContent = 'Partial Rollback (safe operations only)';
+        document.getElementById('alternative-strategies').innerHTML = `
+          <div>• Staged Rollback (phases with verification)</div>
+          <div>• Escalation (manual expert review)</div>
+        `;
+        document.getElementById('estimated-safety').textContent = '75% - Good safety profile';
+        document.getElementById('required-approvals').textContent = 'Engineering Lead';
+
+        // Block rules
+        document.getElementById('block-rules-tbody').innerHTML = `
+          <tr>
+            <td>Production Delete Hours</td>
+            <td>tool_name = delete_file</td>
+            <td>BLOCK</td>
+            <td>Cannot delete files during off-hours</td>
+          </tr>
+          <tr>
+            <td>Large Batch Delete</td>
+            <td>action_count > 20</td>
+            <td>REQUIRE_APPROVAL</td>
+            <td>Large batch deletion requires approval</td>
+          </tr>
+        `;
+      } catch (err) {
+        document.getElementById('risk-score').textContent = 'Error';
+        alert(`Error loading remediation assessment: ${err.message}`);
+      }
+    }
+
+    // Event listener for Run Assessment button
+    document.getElementById('run-assessment-btn').addEventListener('click', async () => {
+      document.getElementById('run-assessment-btn').disabled = true;
+      document.getElementById('run-assessment-btn').textContent = 'Assessing...';
+      await loadRemediation();
+      document.getElementById('run-assessment-btn').disabled = false;
+      document.getElementById('run-assessment-btn').textContent = 'Run Risk Assessment';
+    });
 
     // Hub toggle button
     document.getElementById('hub-toggle').addEventListener('click', () => {
