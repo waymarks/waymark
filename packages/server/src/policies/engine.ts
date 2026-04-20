@@ -2,8 +2,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import micromatch from 'micromatch';
 
-const PROJECT_ROOT = process.env.WAYMARK_PROJECT_ROOT || process.cwd();
-const CONFIG_PATH = path.join(PROJECT_ROOT, 'waymark.config.json');
+// Evaluate at runtime to support test environment variable changes
+function getProjectRoot(): string {
+  return process.env.WAYMARK_PROJECT_ROOT || process.cwd();
+}
+
+function getConfigPath(): string {
+  return path.join(getProjectRoot(), 'waymark.config.json');
+}
 
 export interface WaymarkConfig {
   version: string;
@@ -35,7 +41,8 @@ const DEFAULT_CONFIG: WaymarkConfig = {
 
 export function loadConfig(): WaymarkConfig {
   try {
-    const raw = fs.readFileSync(CONFIG_PATH, 'utf8');
+    const configPath = getConfigPath();
+    const raw = fs.readFileSync(configPath, 'utf8');
     const parsed = JSON.parse(raw) as WaymarkConfig;
     // Ensure all policy arrays exist
     if (!parsed.policies) return DEFAULT_CONFIG;
@@ -57,7 +64,7 @@ export function loadConfig(): WaymarkConfig {
 function resolvePattern(pattern: string): string {
   // Absolute patterns pass through; relative (./...) resolve from project root
   if (path.isAbsolute(pattern)) return pattern;
-  return path.resolve(PROJECT_ROOT, pattern);
+  return path.resolve(getProjectRoot(), pattern);
 }
 
 function matchesAny(absFilePath: string, patterns: string[]): string | null {
@@ -75,7 +82,7 @@ export function checkFileAction(
   action: 'read' | 'write',
   config: WaymarkConfig
 ): PolicyResult {
-  const absPath = path.isAbsolute(filePath) ? filePath : path.resolve(PROJECT_ROOT, filePath);
+  const absPath = path.isAbsolute(filePath) ? filePath : path.resolve(getProjectRoot(), filePath);
   const { blockedPaths, requireApproval, allowedPaths } = config.policies;
 
   // 1. Blocked (both read and write)

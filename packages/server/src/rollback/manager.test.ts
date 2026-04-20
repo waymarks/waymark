@@ -1,6 +1,54 @@
+import { vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+
+// Mock better-sqlite3 to avoid native module binary incompatibility (same as approvals/handler.test.ts)
+vi.mock('better-sqlite3', () => {
+  const dataStore: Map<string, any> = new Map();
+  const mockDb = {
+    prepare: vi.fn((sql: string) => {
+      return {
+        run: vi.fn((params: any) => {
+          if (sql.includes('INSERT INTO action_log')) {
+            const key = `action_${params.action_id}`;
+            dataStore.set(key, params);
+          } else if (sql.includes('UPDATE action_log')) {
+            const key = `action_${params.action_id}`;
+            const existing = dataStore.get(key) || {};
+            const updates: any = {};
+            const setMatch = sql.match(/SET\s+(.*?)\s+WHERE/is);
+            if (setMatch) {
+              const setClauses = setMatch[1].split(',');
+              setClauses.forEach((clause: string) => {
+                const [col, val] = clause.split('=').map((s: string) => s.trim());
+                if (val?.startsWith("'") && val?.endsWith("'")) {
+                  updates[col] = val.slice(1, -1);
+                } else if (val?.startsWith('@')) {
+                  const paramName = val.slice(1);
+                  updates[col] = params[paramName];
+                }
+              });
+            }
+            dataStore.set(key, { ...existing, ...updates });
+          }
+          return { changes: 1 };
+        }),
+        get: vi.fn((idOrParams: any) => {
+          if (typeof idOrParams === 'string') {
+            return dataStore.get(`action_${idOrParams}`);
+          }
+          return dataStore.get(`action_${idOrParams?.action_id}`);
+        }),
+        all: vi.fn(() => Array.from(dataStore.values()).filter((v: any) => v.action_id)),
+      };
+    }),
+    exec: vi.fn(),
+    close: vi.fn(),
+  };
+  return { default: vi.fn(() => mockDb) };
+});
+
 import {
   validateRollbackable,
   createRollbackTransaction,
@@ -23,14 +71,14 @@ function cleanupTempDir(dir: string): void {
 }
 
 function makeTestAction(overrides: Partial<ActionRow> = {}): ActionRow {
-  return {
+  const base = {
     id: 1,
     action_id: 'test-action-1',
     session_id: 'test-session-1',
     tool_name: 'write_file',
     target_path: '/tmp/test.txt',
     input_payload: '{}',
-    before_snapshot: null,
+    before_snapshot: JSON.stringify({ file_path: '/tmp/test.txt', content: 'original', existed: true }),
     after_snapshot: null,
     status: 'success',
     error_message: null,
@@ -53,6 +101,7 @@ function makeTestAction(overrides: Partial<ActionRow> = {}): ActionRow {
     is_reversible: 1,
     ...overrides,
   };
+  return base as ActionRow;
 }
 
 // ─── Tests: validateRollbackable ─────────────────────────────────────────────
@@ -82,7 +131,7 @@ describe('rollback/manager.ts', () => {
         makeTestAction({
           action_id: 'a2',
           is_reversible: 0, // Not reversible!
-          before_snapshot: null,
+          before_snapshot: JSON.stringify({ file_path: '/tmp/test.txt', content: 'old', existed: true }),
         }),
       ];
 

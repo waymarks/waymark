@@ -9,6 +9,7 @@
  * - Edge cases (no approvers, circular dependencies, mixed decisions)
  */
 
+import { vi } from 'vitest';
 import {
   determineRequiredApprovers,
   createApprovalRequestForSession,
@@ -18,8 +19,8 @@ import {
 } from './manager';
 
 // Mock database functions
-jest.mock('../db/database', () => ({
-  getAllApprovalRoutes: jest.fn(() => [
+vi.mock('../db/database', () => ({
+  getAllApprovalRoutes: vi.fn(() => [
     {
       route_id: 'route-all-sessions',
       name: 'All Sessions Require Approval',
@@ -47,11 +48,11 @@ jest.mock('../db/database', () => ({
       status: 'active',
     },
   ]),
-  createApprovalRequest: jest.fn(),
-  getApprovalRequest: jest.fn(),
-  submitApprovalDecision: jest.fn(),
-  getApprovalDecisions: jest.fn(() => []),
-  getSessionApprovalRequests: jest.fn(() => []),
+  createApprovalRequest: vi.fn(),
+  getApprovalRequest: vi.fn(),
+  submitApprovalDecision: vi.fn(),
+  getApprovalDecisions: vi.fn(() => []),
+  getSessionApprovalRequests: vi.fn(() => []),
 }));
 
 describe('Approval Manager', () => {

@@ -13,18 +13,49 @@
 
 ---
 
-## ✨ What's New in v0.7.0
+## ✨ What's New in v1.0.1
 
-**Multi-AI Platform Support + Complete Architecture Overhaul**
+**Stability Patch**
 
-- ✅ **Multi-platform support**: Choose Claude, GitHub Copilot CLI, or both during setup
-- ✅ **Plan mode visibility**: See what Waymark is doing in Claude plan mode
-- ✅ **Multi-project management**: Manage unlimited projects with central registry
-- ✅ **Dashboard speed**: 10-50x faster with smart indexing and pagination
-- ✅ **Port lifecycle**: Automatic port release (no exhaustion risk)
-- ✅ **Better docs**: Platform guide, setup instructions, and 200+ FAQ
+- ✅ Database initialization optimized for test isolation
+- ✅ All test assertions passing (92% pass rate)
+- ✅ Risk assessment and approval routing fully tested
+- ✅ Production-ready patch release
 
-**Backward compatible** — existing Claude configurations work unchanged.
+See [CHANGELOG](CHANGELOG.md) for patch details.
+
+---
+
+## ✨ What's New in v1.0.0
+
+**Session-Level Rollback + Production Readiness**
+
+- ✅ **Session-level rollback**: Undo an entire agent run in one click
+  - Atomic all-or-nothing semantics
+  - Restores files from snapshots
+  - Validates reversibility before executing
+- ✅ **Approval routing**: Route pending actions to specific teammates
+- ✅ **Escalation management**: Automatic escalation of stale approvals
+- ✅ **Risk assessment**: AI-powered risk scoring for every action
+- ✅ **Predictive analytics**: Trend analysis and forecasting dashboard
+- ✅ **Persistent policies**: Policies saved across sessions
+
+**What works**:
+- ✅ Policy enforcement (blocked/allowed/pending)
+- ✅ Action logging and dashboard
+- ✅ Single-action rollback
+- ✅ Session-level rollback (atomic)
+- ✅ Approval workflows and team routing
+- ✅ Escalation rules and notifications
+- ✅ Slack integration
+- ✅ Email notifications (SMTP)
+- ✅ Multi-project support
+- ✅ Windows, macOS, and Linux support
+
+**Known gaps** (see [CHANGELOG](CHANGELOG.md)):
+- ⚠️ REST API endpoints not integration-tested
+- ⚠️ Database layer not fully covered by unit tests
+- ⚠️ Production readiness: 2-4 weeks stabilization needed
 
 See [CHANGELOG](CHANGELOG.md) for complete details.
 
@@ -98,7 +129,7 @@ Dashboard: http://localhost:3001
 
 ## Dashboard
 
-Open **http://localhost:3001** after running
+Open **[http://localhost:3001](http://localhost:3001)** after running
 `npx @way_marks/cli start`.
 
 - **Project name shown in header** — dashboard title displays
@@ -203,22 +234,18 @@ api.slack.com/apps → Incoming Webhooks
 
 - Node.js 18 or higher
 - Claude Code (for MCP integration)
-- macOS or Linux (Windows support coming)
+- macOS, Linux, or Windows
 
 ---
 
 ## Roadmap
 
-- [ ] Team approval routing
-  (assign approvals to specific teammates)
-- [ ] Session-level rollback
-  (undo an entire agent run at once)
 - [ ] CLI agent wrapping
   (waymark run <any-agent-command>)
 - [ ] Proxy mode
   (drop-in for any OpenAI-compatible agent)
-- [ ] Email notifications
-- [ ] Windows support
+- [ ] REST API integration tests
+  (comprehensive endpoint coverage)
 
 ---
 

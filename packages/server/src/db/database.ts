@@ -7,245 +7,259 @@ const DB_PATH = process.env.WAYMARK_DB_PATH
   || path.join(PROJECT_ROOT, '.waymark', 'waymark.db');
 const DB_DIR = path.dirname(DB_PATH);
 
-// Ensure database directory exists
-if (!fs.existsSync(DB_DIR)) {
-  fs.mkdirSync(DB_DIR, { recursive: true });
+// Lazy-load database to allow tests to mock it
+let db: Database.Database | null = null;
+let initialized = false;
+
+function initializeSchema(database: Database.Database): void {
+  if (initialized) return;
+  initialized = true;
+
+  // Create table on startup
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS action_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      action_id TEXT UNIQUE NOT NULL,
+      session_id TEXT NOT NULL,
+      tool_name TEXT NOT NULL,
+      target_path TEXT,
+      input_payload TEXT NOT NULL,
+      before_snapshot TEXT,
+      after_snapshot TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      error_message TEXT,
+      stdout TEXT,
+      stderr TEXT,
+      rolled_back INTEGER NOT NULL DEFAULT 0,
+      rolled_back_at TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Migrate existing DBs — add stdout/stderr if not present
+  try { database.exec('ALTER TABLE action_log ADD COLUMN stdout TEXT'); } catch {}
+  try { database.exec('ALTER TABLE action_log ADD COLUMN stderr TEXT'); } catch {}
+  // Migrate v2: policy engine columns
+  try { database.exec("ALTER TABLE action_log ADD COLUMN decision TEXT NOT NULL DEFAULT 'allow'"); } catch {}
+  try { database.exec('ALTER TABLE action_log ADD COLUMN policy_reason TEXT'); } catch {}
+  try { database.exec('ALTER TABLE action_log ADD COLUMN matched_rule TEXT'); } catch {}
+  // Migrate v3: approval flow columns
+  try { database.exec('ALTER TABLE action_log ADD COLUMN approved_at TEXT'); } catch {}
+  try { database.exec('ALTER TABLE action_log ADD COLUMN approved_by TEXT'); } catch {}
+  try { database.exec('ALTER TABLE action_log ADD COLUMN rejected_at TEXT'); } catch {}
+  try { database.exec('ALTER TABLE action_log ADD COLUMN rejected_reason TEXT'); } catch {}
+  // Migrate v4: Phase 1 — plan mode logging visibility
+  try { database.exec("ALTER TABLE action_log ADD COLUMN event_type TEXT NOT NULL DEFAULT 'execution'"); } catch {}
+  try { database.exec('ALTER TABLE action_log ADD COLUMN observation_context TEXT'); } catch {}
+  try { database.exec('ALTER TABLE action_log ADD COLUMN request_source TEXT DEFAULT \'direct\''); } catch {}
+  // Migrate v5: Phase 5B — CLI action logging (GitHub Copilot CLI wrapper)
+  try { database.exec("ALTER TABLE action_log ADD COLUMN source TEXT DEFAULT 'mcp'"); } catch {}
+  // Migrate v6: Phase 1 — Session-level rollback
+  try { database.exec('ALTER TABLE action_log ADD COLUMN rollback_group TEXT'); } catch {}
+  try { database.exec('ALTER TABLE action_log ADD COLUMN is_reversible INTEGER DEFAULT 1'); } catch {}
+  try { database.exec('ALTER TABLE action_log ADD COLUMN revert_action_id TEXT'); } catch {}
+
+  // Phase 1: Create sessions table
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      session_id TEXT PRIMARY KEY,
+      user_id TEXT,
+      project_id TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      rolled_back_at DATETIME,
+      status TEXT NOT NULL DEFAULT 'active'
+    )
+  `);
+
+  // Indexes for query performance
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_action_id ON action_log(action_id)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_status ON action_log(status)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_session_id ON action_log(session_id)'); } catch {}
+  // Phase 3: Add indexes for pagination and filtering
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_tool_name ON action_log(tool_name)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_created_at ON action_log(created_at DESC)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_status_created ON action_log(status, created_at DESC)'); } catch {}
+
+  // Phase 3: Create archive table (same schema as action_log)
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS action_archive (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      action_id TEXT UNIQUE NOT NULL,
+      session_id TEXT NOT NULL,
+      tool_name TEXT NOT NULL,
+      target_path TEXT,
+      input_payload TEXT NOT NULL,
+      before_snapshot TEXT,
+      after_snapshot TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      error_message TEXT,
+      stdout TEXT,
+      stderr TEXT,
+      rolled_back INTEGER NOT NULL DEFAULT 0,
+      rolled_back_at TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      decision TEXT NOT NULL DEFAULT 'allow',
+      policy_reason TEXT,
+      matched_rule TEXT,
+      approved_at TEXT,
+      approved_by TEXT,
+      rejected_at TEXT,
+      rejected_reason TEXT,
+      event_type TEXT NOT NULL DEFAULT 'execution',
+      observation_context TEXT,
+      request_source TEXT DEFAULT 'direct',
+      source TEXT DEFAULT 'mcp',
+      rollback_group TEXT,
+      is_reversible INTEGER DEFAULT 1,
+      revert_action_id TEXT
+    )
+  `);
+
+  // Phase 1: Add same columns to archive (migrations)
+  try { database.exec('ALTER TABLE action_archive ADD COLUMN rollback_group TEXT'); } catch {}
+  try { database.exec('ALTER TABLE action_archive ADD COLUMN is_reversible INTEGER DEFAULT 1'); } catch {}
+  try { database.exec('ALTER TABLE action_archive ADD COLUMN revert_action_id TEXT'); } catch {}
+
+  // Phase 3: Add indexes on archive table
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_archive_action_id ON action_archive(action_id)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_archive_created_at ON action_archive(created_at DESC)'); } catch {}
+
+  // Phase 1: Add indexes for session rollback
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_action_session ON action_log(session_id, status)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_action_rollback_group ON action_log(rollback_group)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status, created_at DESC)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_archive_session ON action_archive(session_id)'); } catch {}
+
+  // Phase 2: Create team_members table
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS team_members (
+      member_id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      slack_id TEXT,
+      role TEXT DEFAULT 'approver',
+      added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      added_by TEXT,
+      status TEXT DEFAULT 'active'
+    )
+  `);
+
+  // Phase 2: Create approval_routes table (rules for who approves what)
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS approval_routes (
+      route_id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      condition_type TEXT DEFAULT 'all_sessions',
+      condition_json TEXT,
+      required_approvers INTEGER DEFAULT 1,
+      approver_ids TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_by TEXT,
+      status TEXT DEFAULT 'active'
+    )
+  `);
+
+  // Phase 2: Create approval_requests table (pending/completed approvals)
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS approval_requests (
+      request_id TEXT PRIMARY KEY,
+      session_id TEXT NOT NULL,
+      route_id TEXT NOT NULL,
+      triggered_by TEXT NOT NULL,
+      triggered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      status TEXT DEFAULT 'pending',
+      completed_at DATETIME,
+      approver_ids TEXT NOT NULL,
+      approved_count INTEGER DEFAULT 0,
+      rejected_count INTEGER DEFAULT 0,
+      approval_details TEXT
+    )
+  `);
+
+  // Phase 2: Create approval_decisions table (audit trail)
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS approval_decisions (
+      decision_id TEXT PRIMARY KEY,
+      request_id TEXT NOT NULL,
+      approver_id TEXT NOT NULL,
+      decision TEXT NOT NULL,
+      reason TEXT,
+      decided_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Phase 2: Add indexes for team tables
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_team_members_email ON team_members(email)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_team_members_status ON team_members(status)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_approval_routes_status ON approval_routes(status)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_approval_requests_session ON approval_requests(session_id)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_approval_requests_status ON approval_requests(status)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_approval_requests_triggered ON approval_requests(triggered_at DESC)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_approval_decisions_request ON approval_decisions(request_id)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_approval_decisions_approver ON approval_decisions(approver_id)'); } catch {}
+
+  // Phase 3: Create escalation_rules table
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS escalation_rules (
+      rule_id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      timeout_hours INTEGER DEFAULT 24,
+      escalation_targets TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_by TEXT,
+      status TEXT DEFAULT 'active'
+    )
+  `);
+
+  // Phase 3: Create escalation_requests table
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS escalation_requests (
+      request_id TEXT PRIMARY KEY,
+      approval_request_id TEXT NOT NULL,
+      session_id TEXT NOT NULL,
+      escalation_triggered_at DATETIME,
+      escalation_deadline DATETIME,
+      escalation_targets TEXT NOT NULL,
+      status TEXT DEFAULT 'pending',
+      decided_at DATETIME,
+      decision TEXT
+    )
+  `);
+
+  // Phase 3: Create escalation_decisions table
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS escalation_decisions (
+      decision_id TEXT PRIMARY KEY,
+      escalation_request_id TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      decision TEXT NOT NULL,
+      reason TEXT,
+      decided_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Phase 3: Add indexes for escalation tables
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_escalation_rules_status ON escalation_rules(status)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_escalation_requests_approval ON escalation_requests(approval_request_id)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_escalation_requests_deadline ON escalation_requests(escalation_deadline)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_escalation_requests_status ON escalation_requests(status)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_escalation_decisions_request ON escalation_decisions(escalation_request_id)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_escalation_decisions_target ON escalation_decisions(target_id)'); } catch {}
 }
 
-const db = new Database(DB_PATH);
-
-// Create table on startup
-db.exec(`
-  CREATE TABLE IF NOT EXISTS action_log (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    action_id TEXT UNIQUE NOT NULL,
-    session_id TEXT NOT NULL,
-    tool_name TEXT NOT NULL,
-    target_path TEXT,
-    input_payload TEXT NOT NULL,
-    before_snapshot TEXT,
-    after_snapshot TEXT,
-    status TEXT NOT NULL DEFAULT 'pending',
-    error_message TEXT,
-    stdout TEXT,
-    stderr TEXT,
-    rolled_back INTEGER NOT NULL DEFAULT 0,
-    rolled_back_at TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
-
-// Migrate existing DBs — add stdout/stderr if not present
-try { db.exec('ALTER TABLE action_log ADD COLUMN stdout TEXT'); } catch {}
-try { db.exec('ALTER TABLE action_log ADD COLUMN stderr TEXT'); } catch {}
-// Migrate v2: policy engine columns
-try { db.exec("ALTER TABLE action_log ADD COLUMN decision TEXT NOT NULL DEFAULT 'allow'"); } catch {}
-try { db.exec('ALTER TABLE action_log ADD COLUMN policy_reason TEXT'); } catch {}
-try { db.exec('ALTER TABLE action_log ADD COLUMN matched_rule TEXT'); } catch {}
-// Migrate v3: approval flow columns
-try { db.exec('ALTER TABLE action_log ADD COLUMN approved_at TEXT'); } catch {}
-try { db.exec('ALTER TABLE action_log ADD COLUMN approved_by TEXT'); } catch {}
-try { db.exec('ALTER TABLE action_log ADD COLUMN rejected_at TEXT'); } catch {}
-try { db.exec('ALTER TABLE action_log ADD COLUMN rejected_reason TEXT'); } catch {}
-// Migrate v4: Phase 1 — plan mode logging visibility
-try { db.exec("ALTER TABLE action_log ADD COLUMN event_type TEXT NOT NULL DEFAULT 'execution'"); } catch {}
-try { db.exec('ALTER TABLE action_log ADD COLUMN observation_context TEXT'); } catch {}
-try { db.exec('ALTER TABLE action_log ADD COLUMN request_source TEXT DEFAULT \'direct\''); } catch {}
-// Migrate v5: Phase 5B — CLI action logging (GitHub Copilot CLI wrapper)
-try { db.exec("ALTER TABLE action_log ADD COLUMN source TEXT DEFAULT 'mcp'"); } catch {}
-// Migrate v6: Phase 1 — Session-level rollback
-try { db.exec('ALTER TABLE action_log ADD COLUMN rollback_group TEXT'); } catch {}
-try { db.exec('ALTER TABLE action_log ADD COLUMN is_reversible INTEGER DEFAULT 1'); } catch {}
-try { db.exec('ALTER TABLE action_log ADD COLUMN revert_action_id TEXT'); } catch {}
-
-// Phase 1: Create sessions table
-db.exec(`
-  CREATE TABLE IF NOT EXISTS sessions (
-    session_id TEXT PRIMARY KEY,
-    user_id TEXT,
-    project_id TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    rolled_back_at DATETIME,
-    status TEXT NOT NULL DEFAULT 'active'
-  )
-`);
-
-// Indexes for query performance
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_action_id ON action_log(action_id)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_status ON action_log(status)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_session_id ON action_log(session_id)'); } catch {}
-// Phase 3: Add indexes for pagination and filtering
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_tool_name ON action_log(tool_name)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_created_at ON action_log(created_at DESC)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_status_created ON action_log(status, created_at DESC)'); } catch {}
-
-// Phase 3: Create archive table (same schema as action_log)
-db.exec(`
-  CREATE TABLE IF NOT EXISTS action_archive (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    action_id TEXT UNIQUE NOT NULL,
-    session_id TEXT NOT NULL,
-    tool_name TEXT NOT NULL,
-    target_path TEXT,
-    input_payload TEXT NOT NULL,
-    before_snapshot TEXT,
-    after_snapshot TEXT,
-    status TEXT NOT NULL DEFAULT 'pending',
-    error_message TEXT,
-    stdout TEXT,
-    stderr TEXT,
-    rolled_back INTEGER NOT NULL DEFAULT 0,
-    rolled_back_at TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    decision TEXT NOT NULL DEFAULT 'allow',
-    policy_reason TEXT,
-    matched_rule TEXT,
-    approved_at TEXT,
-    approved_by TEXT,
-    rejected_at TEXT,
-    rejected_reason TEXT,
-    event_type TEXT NOT NULL DEFAULT 'execution',
-    observation_context TEXT,
-    request_source TEXT DEFAULT 'direct',
-    source TEXT DEFAULT 'mcp',
-    rollback_group TEXT,
-    is_reversible INTEGER DEFAULT 1,
-    revert_action_id TEXT
-  )
-`);
-
-// Phase 1: Add same columns to archive (migrations)
-try { db.exec('ALTER TABLE action_archive ADD COLUMN rollback_group TEXT'); } catch {}
-try { db.exec('ALTER TABLE action_archive ADD COLUMN is_reversible INTEGER DEFAULT 1'); } catch {}
-try { db.exec('ALTER TABLE action_archive ADD COLUMN revert_action_id TEXT'); } catch {}
-
-// Phase 3: Add indexes on archive table
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_archive_action_id ON action_archive(action_id)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_archive_created_at ON action_archive(created_at DESC)'); } catch {}
-
-// Phase 1: Add indexes for session rollback
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_action_session ON action_log(session_id, status)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_action_rollback_group ON action_log(rollback_group)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_sessions_status ON sessions(status, created_at DESC)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_archive_session ON action_archive(session_id)'); } catch {}
-
-// Phase 2: Create team_members table
-db.exec(`
-  CREATE TABLE IF NOT EXISTS team_members (
-    member_id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL UNIQUE,
-    slack_id TEXT,
-    role TEXT DEFAULT 'approver',
-    added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    added_by TEXT,
-    status TEXT DEFAULT 'active'
-  )
-`);
-
-// Phase 2: Create approval_routes table (rules for who approves what)
-db.exec(`
-  CREATE TABLE IF NOT EXISTS approval_routes (
-    route_id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    condition_type TEXT DEFAULT 'all_sessions',
-    condition_json TEXT,
-    required_approvers INTEGER DEFAULT 1,
-    approver_ids TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    created_by TEXT,
-    status TEXT DEFAULT 'active'
-  )
-`);
-
-// Phase 2: Create approval_requests table (pending/completed approvals)
-db.exec(`
-  CREATE TABLE IF NOT EXISTS approval_requests (
-    request_id TEXT PRIMARY KEY,
-    session_id TEXT NOT NULL,
-    route_id TEXT NOT NULL,
-    triggered_by TEXT NOT NULL,
-    triggered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    status TEXT DEFAULT 'pending',
-    completed_at DATETIME,
-    approver_ids TEXT NOT NULL,
-    approved_count INTEGER DEFAULT 0,
-    rejected_count INTEGER DEFAULT 0,
-    approval_details TEXT
-  )
-`);
-
-// Phase 2: Create approval_decisions table (audit trail)
-db.exec(`
-  CREATE TABLE IF NOT EXISTS approval_decisions (
-    decision_id TEXT PRIMARY KEY,
-    request_id TEXT NOT NULL,
-    approver_id TEXT NOT NULL,
-    decision TEXT NOT NULL,
-    reason TEXT,
-    decided_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
-
-// Phase 2: Add indexes for team tables
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_team_members_email ON team_members(email)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_team_members_status ON team_members(status)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_approval_routes_status ON approval_routes(status)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_approval_requests_session ON approval_requests(session_id)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_approval_requests_status ON approval_requests(status)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_approval_requests_triggered ON approval_requests(triggered_at DESC)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_approval_decisions_request ON approval_decisions(request_id)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_approval_decisions_approver ON approval_decisions(approver_id)'); } catch {}
-
-// Phase 3: Create escalation_rules table
-db.exec(`
-  CREATE TABLE IF NOT EXISTS escalation_rules (
-    rule_id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    timeout_hours INTEGER DEFAULT 24,
-    escalation_targets TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    created_by TEXT,
-    status TEXT DEFAULT 'active'
-  )
-`);
-
-// Phase 3: Create escalation_requests table
-db.exec(`
-  CREATE TABLE IF NOT EXISTS escalation_requests (
-    request_id TEXT PRIMARY KEY,
-    approval_request_id TEXT NOT NULL,
-    session_id TEXT NOT NULL,
-    escalation_triggered_at DATETIME,
-    escalation_deadline DATETIME,
-    escalation_targets TEXT NOT NULL,
-    status TEXT DEFAULT 'pending',
-    decided_at DATETIME,
-    decision TEXT
-  )
-`);
-
-// Phase 3: Create escalation_decisions table
-db.exec(`
-  CREATE TABLE IF NOT EXISTS escalation_decisions (
-    decision_id TEXT PRIMARY KEY,
-    escalation_request_id TEXT NOT NULL,
-    target_id TEXT NOT NULL,
-    decision TEXT NOT NULL,
-    reason TEXT,
-    decided_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
-
-// Phase 3: Add indexes for escalation tables
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_escalation_rules_status ON escalation_rules(status)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_escalation_requests_approval ON escalation_requests(approval_request_id)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_escalation_requests_deadline ON escalation_requests(escalation_deadline)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_escalation_requests_status ON escalation_requests(status)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_escalation_decisions_request ON escalation_decisions(escalation_request_id)'); } catch {}
-try { db.exec('CREATE INDEX IF NOT EXISTS idx_escalation_decisions_target ON escalation_decisions(target_id)'); } catch {}
+function getDb(): Database.Database {
+  if (!db) {
+    // Ensure database directory exists
+    if (!fs.existsSync(DB_DIR)) {
+      fs.mkdirSync(DB_DIR, { recursive: true });
+    }
+    db = new Database(DB_PATH);
+    initializeSchema(db);
+  }
+  return db;
+}
 
 export interface ActionRow {
   id: number;
@@ -396,23 +410,36 @@ export interface UpdateActionParams {
   stderr?: string | null;
 }
 
-const insertStmt = db.prepare(`
-  INSERT INTO action_log (action_id, session_id, tool_name, target_path, input_payload, before_snapshot, status, decision, policy_reason, matched_rule, event_type, observation_context, request_source, source)
-  VALUES (@action_id, @session_id, @tool_name, @target_path, @input_payload, @before_snapshot, @status, @decision, @policy_reason, @matched_rule, @event_type, @observation_context, @request_source, @source)
-`);
+let insertStmt: Database.Statement | null = null;
+let updateStmt: Database.Statement | null = null;
 
-const updateStmt = db.prepare(`
-  UPDATE action_log
-  SET status = COALESCE(@status, status),
-      after_snapshot = COALESCE(@after_snapshot, after_snapshot),
-      error_message = COALESCE(@error_message, error_message),
-      stdout = COALESCE(@stdout, stdout),
-      stderr = COALESCE(@stderr, stderr)
-  WHERE action_id = @action_id
-`);
+function getInsertStmt(): Database.Statement {
+  if (!insertStmt) {
+    insertStmt = getDb().prepare(`
+      INSERT INTO action_log (action_id, session_id, tool_name, target_path, input_payload, before_snapshot, status, decision, policy_reason, matched_rule, event_type, observation_context, request_source, source)
+      VALUES (@action_id, @session_id, @tool_name, @target_path, @input_payload, @before_snapshot, @status, @decision, @policy_reason, @matched_rule, @event_type, @observation_context, @request_source, @source)
+    `);
+  }
+  return insertStmt;
+}
+
+function getUpdateStmt(): Database.Statement {
+  if (!updateStmt) {
+    updateStmt = getDb().prepare(`
+      UPDATE action_log
+      SET status = COALESCE(@status, status),
+          after_snapshot = COALESCE(@after_snapshot, after_snapshot),
+          error_message = COALESCE(@error_message, error_message),
+          stdout = COALESCE(@stdout, stdout),
+          stderr = COALESCE(@stderr, stderr)
+      WHERE action_id = @action_id
+    `);
+  }
+  return updateStmt;
+}
 
 export function insertAction(params: InsertActionParams): void {
-  insertStmt.run({
+  getInsertStmt().run({
     action_id: params.action_id,
     session_id: params.session_id,
     tool_name: params.tool_name,
@@ -431,7 +458,7 @@ export function insertAction(params: InsertActionParams): void {
 }
 
 export function updateAction(action_id: string, params: UpdateActionParams): void {
-  updateStmt.run({
+  getUpdateStmt().run({
     action_id,
     status: params.status ?? null,
     after_snapshot: params.after_snapshot ?? null,
@@ -442,19 +469,19 @@ export function updateAction(action_id: string, params: UpdateActionParams): voi
 }
 
 export function getActions(): ActionRow[] {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM action_log ORDER BY created_at DESC LIMIT 100
   `).all() as ActionRow[];
 }
 
 export function getAction(action_id: string): ActionRow | undefined {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM action_log WHERE action_id = ?
   `).get(action_id) as ActionRow | undefined;
 }
 
 export function markRolledBack(action_id: string): void {
-  db.prepare(`
+  getDb().prepare(`
     UPDATE action_log
     SET rolled_back = 1, rolled_back_at = datetime('now')
     WHERE action_id = ?
@@ -462,7 +489,7 @@ export function markRolledBack(action_id: string): void {
 }
 
 export function getSessions(): Array<{ session_id: string; action_count: number; latest: string }> {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT session_id,
            COUNT(*) as action_count,
            MAX(created_at) as latest
@@ -473,7 +500,7 @@ export function getSessions(): Array<{ session_id: string; action_count: number;
 }
 
 export function approveAction(action_id: string, approved_by: string, after_snapshot?: string): void {
-  db.prepare(`
+  getDb().prepare(`
     UPDATE action_log
     SET status = 'success',
         decision = 'allow',
@@ -485,7 +512,7 @@ export function approveAction(action_id: string, approved_by: string, after_snap
 }
 
 export function rejectAction(action_id: string, reason: string): void {
-  db.prepare(`
+  getDb().prepare(`
     UPDATE action_log
     SET status = 'rejected',
         decision = 'rejected',
@@ -496,7 +523,7 @@ export function rejectAction(action_id: string, reason: string): void {
 }
 
 export function getPendingCount(): number {
-  const row = db.prepare(`
+  const row = getDb().prepare(`
     SELECT COUNT(*) as count FROM action_log WHERE status = 'pending'
   `).get() as { count: number };
   return row.count;
@@ -543,13 +570,13 @@ export function getActionsWithFiltering(filter: ActionFilter = {}): PaginationRe
   }
 
   // Get total count
-  const countRow = db.prepare(`
+  const countRow = getDb().prepare(`
     SELECT COUNT(*) as count FROM action_log WHERE ${where}
   `).get(params) as { count: number };
   const totalCount = countRow.count;
 
   // Get paginated results
-  const actions = db.prepare(`
+  const actions = getDb().prepare(`
     SELECT * FROM action_log WHERE ${where}
     ORDER BY created_at DESC
     LIMIT @limit OFFSET @offset
@@ -570,13 +597,13 @@ export function archiveOldActions(daysOld: number = 30): number {
   const cutoffStr = cutoffDate.toISOString();
 
   // Copy old actions to archive
-  const result = db.prepare(`
+  const result = getDb().prepare(`
     INSERT OR IGNORE INTO action_archive
     SELECT * FROM action_log WHERE created_at < @cutoff
   `).run({ cutoff: cutoffStr });
 
   // Delete from main table (but keep recent entries)
-  const deleteStmt = db.prepare(`
+  const deleteStmt = getDb().prepare(`
     DELETE FROM action_log WHERE created_at < @cutoff
     AND id NOT IN (
       SELECT id FROM action_log ORDER BY created_at DESC LIMIT 1000
@@ -610,12 +637,12 @@ export function getArchivedActionsWithFiltering(filter: ActionFilter = {}): Pagi
     params.search = `%${filter.search}%`;
   }
 
-  const countRow = db.prepare(`
+  const countRow = getDb().prepare(`
     SELECT COUNT(*) as count FROM action_archive WHERE ${where}
   `).get(params) as { count: number };
   const totalCount = countRow.count;
 
-  const actions = db.prepare(`
+  const actions = getDb().prepare(`
     SELECT * FROM action_archive WHERE ${where}
     ORDER BY created_at DESC
     LIMIT @limit OFFSET @offset
@@ -649,42 +676,42 @@ export function getSummaryStats(): SummaryStats {
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-  const total = db.prepare(`
+  const total = getDb().prepare(`
     SELECT COUNT(*) as count FROM action_log
   `).get() as { count: number };
 
-  const pending = db.prepare(`
+  const pending = getDb().prepare(`
     SELECT COUNT(*) as count FROM action_log WHERE status = 'pending'
   `).get() as { count: number };
 
-  const approved = db.prepare(`
+  const approved = getDb().prepare(`
     SELECT COUNT(*) as count FROM action_log WHERE status = 'success' OR decision = 'allow'
   `).get() as { count: number };
 
-  const rejected = db.prepare(`
+  const rejected = getDb().prepare(`
     SELECT COUNT(*) as count FROM action_log WHERE status = 'rejected' OR decision = 'rejected'
   `).get() as { count: number };
 
-  const todayCount = db.prepare(`
+  const todayCount = getDb().prepare(`
     SELECT COUNT(*) as count FROM action_log WHERE created_at >= @today
   `).get({ today }) as { count: number };
 
-  const weekCount = db.prepare(`
+  const weekCount = getDb().prepare(`
     SELECT COUNT(*) as count FROM action_log WHERE created_at >= @weekAgo
   `).get({ weekAgo }) as { count: number };
 
-  const monthCount = db.prepare(`
+  const monthCount = getDb().prepare(`
     SELECT COUNT(*) as count FROM action_log WHERE created_at >= @monthAgo
   `).get({ monthAgo }) as { count: number };
 
-  const topTools = db.prepare(`
+  const topTools = getDb().prepare(`
     SELECT tool_name as tool, COUNT(*) as count FROM action_log
     GROUP BY tool_name
     ORDER BY count DESC
     LIMIT 5
   `).all() as Array<{ tool: string; count: number }>;
 
-  const topPaths = db.prepare(`
+  const topPaths = getDb().prepare(`
     SELECT target_path as path, COUNT(*) as count FROM action_log
     WHERE target_path IS NOT NULL
     GROUP BY target_path
@@ -707,26 +734,26 @@ export function getSummaryStats(): SummaryStats {
 
 // Phase 1: Session management functions
 export function createSession(session_id: string, user_id?: string, project_id?: string): void {
-  db.prepare(`
+  getDb().prepare(`
     INSERT OR IGNORE INTO sessions (session_id, user_id, project_id, status)
     VALUES (?, ?, ?, 'active')
   `).run(session_id, user_id ?? null, project_id ?? null);
 }
 
 export function getSession(session_id: string): SessionRow | undefined {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM sessions WHERE session_id = ?
   `).get(session_id) as SessionRow | undefined;
 }
 
 export function getAllSessions(): SessionRow[] {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM sessions ORDER BY created_at DESC
   `).all() as SessionRow[];
 }
 
 export function getSessionActions(session_id: string): ActionRow[] {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM action_log
     WHERE session_id = ?
     ORDER BY created_at ASC
@@ -743,7 +770,7 @@ export interface RollbackResult {
 export function rollbackSession(session_id: string): RollbackResult {
   try {
     // Start transaction
-    const transaction = db.transaction(() => {
+    const transaction = getDb().transaction(() => {
       // Get all actions in session
       const actions = getSessionActions(session_id);
 
@@ -777,7 +804,7 @@ export function rollbackSession(session_id: string): RollbackResult {
       }
 
       // Mark session as rolled back
-      db.prepare(`
+      getDb().prepare(`
         UPDATE sessions
         SET rolled_back_at = datetime('now'), status = 'rolled_back'
         WHERE session_id = ?
@@ -804,7 +831,7 @@ export function rollbackSession(session_id: string): RollbackResult {
 }
 
 export function markSessionRolledBack(session_id: string): void {
-  db.prepare(`
+  getDb().prepare(`
     UPDATE sessions
     SET rolled_back_at = datetime('now'), status = 'rolled_back'
     WHERE session_id = ?
@@ -819,32 +846,32 @@ export function addTeamMember(
   added_by: string,
   slack_id?: string
 ): void {
-  db.prepare(`
+  getDb().prepare(`
     INSERT OR REPLACE INTO team_members (member_id, name, email, slack_id, added_by, status)
     VALUES (?, ?, ?, ?, ?, 'active')
   `).run(member_id, name, email, slack_id ?? null, added_by);
 }
 
 export function getTeamMember(member_id: string): TeamMember | undefined {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM team_members WHERE member_id = ?
   `).get(member_id) as TeamMember | undefined;
 }
 
 export function getTeamMemberByEmail(email: string): TeamMember | undefined {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM team_members WHERE email = ?
   `).get(email) as TeamMember | undefined;
 }
 
 export function getAllTeamMembers(): TeamMember[] {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM team_members WHERE status = 'active' ORDER BY name ASC
   `).all() as TeamMember[];
 }
 
 export function removeTeamMember(member_id: string): void {
-  db.prepare(`
+  getDb().prepare(`
     UPDATE team_members SET status = 'inactive' WHERE member_id = ?
   `).run(member_id);
 }
@@ -859,7 +886,7 @@ export function addApprovalRoute(
   condition_type?: string,
   condition_json?: string
 ): void {
-  db.prepare(`
+  getDb().prepare(`
     INSERT OR REPLACE INTO approval_routes (route_id, name, description, condition_type, condition_json, approver_ids, created_by, status)
     VALUES (?, ?, ?, ?, ?, ?, ?, 'active')
   `).run(
@@ -874,13 +901,13 @@ export function addApprovalRoute(
 }
 
 export function getApprovalRoute(route_id: string): ApprovalRoute | undefined {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM approval_routes WHERE route_id = ?
   `).get(route_id) as ApprovalRoute | undefined;
 }
 
 export function getAllApprovalRoutes(): ApprovalRoute[] {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM approval_routes WHERE status = 'active' ORDER BY name ASC
   `).all() as ApprovalRoute[];
 }
@@ -892,7 +919,7 @@ export function updateApprovalRoute(
   const current = getApprovalRoute(route_id);
   if (!current) throw new Error(`Route ${route_id} not found`);
 
-  db.prepare(`
+  getDb().prepare(`
     UPDATE approval_routes
     SET name = ?, description = ?, approver_ids = ?
     WHERE route_id = ?
@@ -905,7 +932,7 @@ export function updateApprovalRoute(
 }
 
 export function deleteApprovalRoute(route_id: string): void {
-  db.prepare(`
+  getDb().prepare(`
     UPDATE approval_routes SET status = 'inactive' WHERE route_id = ?
   `).run(route_id);
 }
@@ -918,33 +945,33 @@ export function createApprovalRequest(
   triggered_by: string,
   approver_ids: string[]
 ): void {
-  db.prepare(`
+  getDb().prepare(`
     INSERT INTO approval_requests (request_id, session_id, route_id, triggered_by, approver_ids, status)
     VALUES (?, ?, ?, ?, ?, 'pending')
   `).run(request_id, session_id, route_id, triggered_by, JSON.stringify(approver_ids));
 }
 
 export function getApprovalRequest(request_id: string): ApprovalRequest | undefined {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM approval_requests WHERE request_id = ?
   `).get(request_id) as ApprovalRequest | undefined;
 }
 
 export function getSessionApprovalRequests(session_id: string): ApprovalRequest[] {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM approval_requests WHERE session_id = ? ORDER BY triggered_at DESC
   `).all(session_id) as ApprovalRequest[];
 }
 
 export function getPendingApprovals(approver_id?: string): ApprovalRequest[] {
   if (approver_id) {
-    return db.prepare(`
+    return getDb().prepare(`
       SELECT * FROM approval_requests
       WHERE status = 'pending' AND approver_ids LIKE ?
       ORDER BY triggered_at DESC
     `).all(`%"${approver_id}"%`) as ApprovalRequest[];
   }
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM approval_requests WHERE status = 'pending' ORDER BY triggered_at DESC
   `).all() as ApprovalRequest[];
 }
@@ -957,7 +984,7 @@ export function submitApprovalDecision(
   reason?: string
 ): void {
   // Insert decision
-  db.prepare(`
+  getDb().prepare(`
     INSERT INTO approval_decisions (decision_id, request_id, approver_id, decision, reason)
     VALUES (?, ?, ?, ?, ?)
   `).run(decision_id, request_id, approver_id, decision, reason ?? null);
@@ -966,7 +993,7 @@ export function submitApprovalDecision(
   const request = getApprovalRequest(request_id);
   if (!request) throw new Error(`Request ${request_id} not found`);
 
-  const decisions = db.prepare(`
+  const decisions = getDb().prepare(`
     SELECT decision FROM approval_decisions WHERE request_id = ?
   `).all(request_id) as Array<{ decision: string }>;
 
@@ -982,7 +1009,7 @@ export function submitApprovalDecision(
     newStatus = 'approved';
   }
 
-  db.prepare(`
+  getDb().prepare(`
     UPDATE approval_requests
     SET approved_count = ?, rejected_count = ?, status = ?, completed_at = ?
     WHERE request_id = ?
@@ -996,7 +1023,7 @@ export function submitApprovalDecision(
 }
 
 export function getApprovalDecisions(request_id: string): ApprovalDecision[] {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM approval_decisions WHERE request_id = ? ORDER BY decided_at ASC
   `).all(request_id) as ApprovalDecision[];
 }
@@ -1010,7 +1037,7 @@ export function addEscalationRule(
   description?: string,
   timeout_hours?: number
 ): void {
-  db.prepare(`
+  getDb().prepare(`
     INSERT OR REPLACE INTO escalation_rules (rule_id, name, description, timeout_hours, escalation_targets, created_by, status)
     VALUES (?, ?, ?, ?, ?, ?, 'active')
   `).run(
@@ -1024,13 +1051,13 @@ export function addEscalationRule(
 }
 
 export function getEscalationRule(rule_id: string): EscalationRule | undefined {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM escalation_rules WHERE rule_id = ?
   `).get(rule_id) as EscalationRule | undefined;
 }
 
 export function getAllEscalationRules(): EscalationRule[] {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM escalation_rules WHERE status = 'active' ORDER BY name ASC
   `).all() as EscalationRule[];
 }
@@ -1042,7 +1069,7 @@ export function updateEscalationRule(
   const current = getEscalationRule(rule_id);
   if (!current) throw new Error(`Rule ${rule_id} not found`);
 
-  db.prepare(`
+  getDb().prepare(`
     UPDATE escalation_rules
     SET name = ?, description = ?, timeout_hours = ?, escalation_targets = ?
     WHERE rule_id = ?
@@ -1056,7 +1083,7 @@ export function updateEscalationRule(
 }
 
 export function deleteEscalationRule(rule_id: string): void {
-  db.prepare(`
+  getDb().prepare(`
     UPDATE escalation_rules SET status = 'inactive' WHERE rule_id = ?
   `).run(rule_id);
 }
@@ -1069,26 +1096,26 @@ export function createEscalationRequest(
   escalation_targets: string[],
   deadline: string
 ): void {
-  db.prepare(`
+  getDb().prepare(`
     INSERT INTO escalation_requests (request_id, approval_request_id, session_id, escalation_triggered_at, escalation_deadline, escalation_targets, status)
     VALUES (?, ?, ?, datetime('now'), ?, ?, 'pending')
   `).run(request_id, approval_request_id, session_id, deadline, JSON.stringify(escalation_targets));
 }
 
 export function getEscalationRequest(request_id: string): EscalationRequest | undefined {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM escalation_requests WHERE request_id = ?
   `).get(request_id) as EscalationRequest | undefined;
 }
 
 export function getPendingEscalations(): EscalationRequest[] {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM escalation_requests WHERE status = 'pending' ORDER BY escalation_deadline ASC
   `).all() as EscalationRequest[];
 }
 
 export function getStaleApprovals(now: string): Array<{ approval_request_id: string; session_id: string }> {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT DISTINCT ar.request_id as approval_request_id, ar.session_id
     FROM approval_requests ar
     WHERE ar.status = 'pending'
@@ -1107,7 +1134,7 @@ export function submitEscalationDecision(
   decision: 'proceed' | 'block',
   reason?: string
 ): void {
-  db.prepare(`
+  getDb().prepare(`
     INSERT INTO escalation_decisions (decision_id, escalation_request_id, target_id, decision, reason)
     VALUES (?, ?, ?, ?, ?)
   `).run(decision_id, escalation_request_id, target_id, decision, reason ?? null);
@@ -1116,14 +1143,14 @@ export function submitEscalationDecision(
   const request = getEscalationRequest(escalation_request_id);
   if (!request) return;
 
-  const decisions = db.prepare(`
+  const decisions = getDb().prepare(`
     SELECT DISTINCT decision FROM escalation_decisions WHERE escalation_request_id = ?
   `).all(escalation_request_id) as Array<{ decision: string }>;
 
   const hasBlockDecision = decisions.some(d => d.decision === 'block');
   const newStatus = hasBlockDecision ? 'blocked' : 'proceeded';
 
-  db.prepare(`
+  getDb().prepare(`
     UPDATE escalation_requests
     SET status = ?, decided_at = datetime('now'), decision = ?
     WHERE request_id = ?
@@ -1131,13 +1158,13 @@ export function submitEscalationDecision(
 }
 
 export function getEscalationDecisions(escalation_request_id: string): EscalationDecision[] {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM escalation_decisions WHERE escalation_request_id = ? ORDER BY decided_at ASC
   `).all(escalation_request_id) as EscalationDecision[];
 }
 
 export function getEscalationHistory(session_id: string): EscalationRequest[] {
-  return db.prepare(`
+  return getDb().prepare(`
     SELECT * FROM escalation_requests WHERE session_id = ? ORDER BY escalation_triggered_at DESC
   `).all(session_id) as EscalationRequest[];
 }

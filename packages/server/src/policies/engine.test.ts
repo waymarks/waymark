@@ -191,12 +191,12 @@ describe('loadConfig', () => {
     } else {
       process.env.WAYMARK_PROJECT_ROOT = originalRoot;
     }
-    jest.resetModules();
+    // Note: Vitest handles module state per test, no need to resetModules
   });
 
   it('returns default config when waymark.config.json is missing', () => {
-    const { loadConfig: lc } = jest.requireActual('./engine') as typeof import('./engine');
-    const config = lc();
+    // Use the imported loadConfig directly
+    const config = loadConfig();
     expect(config.policies.allowedPaths).toEqual([]);
     expect(config.policies.blockedPaths).toEqual([]);
     expect(config.policies.maxBashOutputBytes).toBe(10000);
@@ -214,24 +214,21 @@ describe('loadConfig', () => {
       },
     };
     fs.writeFileSync(path.join(tmpConfigDir, 'waymark.config.json'), JSON.stringify(payload));
-    const { loadConfig: lc } = jest.requireActual('./engine') as typeof import('./engine');
-    const config = lc();
+    const config = loadConfig();
     expect(config.policies.allowedPaths).toEqual(['./src/**']);
     expect(config.policies.maxBashOutputBytes).toBe(5000);
   });
 
   it('returns default config on malformed JSON', () => {
     fs.writeFileSync(path.join(tmpConfigDir, 'waymark.config.json'), '{ broken json');
-    const { loadConfig: lc } = jest.requireActual('./engine') as typeof import('./engine');
-    const config = lc();
+    const config = loadConfig();
     expect(config.policies.allowedPaths).toEqual([]);
   });
 
   it('fills in missing policy arrays with empty defaults', () => {
     const payload = { version: '1', policies: {} };
     fs.writeFileSync(path.join(tmpConfigDir, 'waymark.config.json'), JSON.stringify(payload));
-    const { loadConfig: lc } = jest.requireActual('./engine') as typeof import('./engine');
-    const config = lc();
+    const config = loadConfig();
     expect(config.policies.allowedPaths).toEqual([]);
     expect(config.policies.blockedCommands).toEqual([]);
   });

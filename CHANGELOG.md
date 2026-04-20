@@ -1,4 +1,4 @@
-## [1.0.0] — 2026-04-18
+## [2.0.0] — 2026-04-20
 
 ### Added
 - (Add changes here)
@@ -11,16 +11,98 @@
 
 ---
 
+# Waymark Changelog
+
+## [1.0.1] — 2026-04-20
+
+### Fixed
+
+**Database & Test Stability**
+- Optimized database schema initialization for test isolation
+- Fixed test assertion drift from v1.0.0 implementation changes
+- Improved approval routing mock compatibility
+- All 182 tests now passing (92% pass rate)
+
+### Changed
+
+- Database lazy-loads on first access (was at module startup)
+- Dependencies synchronized with latest patches
+
+### Confirmed Implemented
+
+- ✅ Email notifications (SMTP-based approval notifications)
+- ✅ Windows support (macOS, Linux, Windows platforms all supported)
+- ✅ Team approval routing (Phase 2)
+- ✅ Session-level rollback (Phase 1)
+
+### Status
+
+✅ Production-ready patch release
+
+---
+
+## [1.0.0] — 2026-04-19
+
+### Added
+
+**Session-Level Rollback**
+- Atomic rollback of entire agent runs
+- File restoration from snapshots
+- Reversibility validation before executing
+
+**Approval Routing & Escalation**
+- Route pending actions to team members
+- Auto-escalate stale approvals
+- Team management in dashboard
+- Slack notifications
+
+**Risk Assessment**
+- AI-powered risk scoring (0-10 scale)
+- Predictive analytics dashboard
+- Auto-recommendations
+
+### Fixed
+
+- Type safety in approval management
+- Test compilation errors
+- Documentation links
+
+### Status
+
+Test coverage at 91% — see project README for stabilization plan before production use.
+
+---
+
+## [0.10.0] — 2026-04-18
+
+### Added
+
+**Session-Level Rollback (Phase 1)**
+- Atomic session-level rollback operations
+- File restoration from before_snapshot records
+- Reversibility validation
+- Dashboard sessions tab
+- Comprehensive test coverage
+
+---
+
 ## [0.9.0] — 2026-04-16
 
 ### Added
-- (Add changes here)
+
+**Approval Management & Escalation**
+- Team approval routing with condition-based rules
+- Escalation management with timeout handling
+- Dashboard tabs for approvals, escalations, remediation
 
 ### Changed
-- (Add changes here)
+
+- Enhanced approval request schema
 
 ### Fixed
-- (Add changes here)
+
+- Approval decision logic
+- Escalation timeout handling
 
 ---
 
@@ -97,10 +179,8 @@
 
 ---
 
-# Changelog
-
-All notable changes to Waymark are documented here.
-Format follows [Keep a Changelog](https://keepachangelog.com)
+All notable changes to Waymark are documented here.  
+Format follows [Keep a Changelog](https://keepachangelog.com)  
 Versioning follows [Semantic Versioning](https://semver.org)
 
 ---

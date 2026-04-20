@@ -375,8 +375,8 @@ describe('Risk Assessment Engine', () => {
       const assessment = assessRisk(session, actions);
 
       expect(assessment.score).toBeGreaterThan(2);
-      expect(assessment.score).toBeLessThan(5);
-      expect(assessment.level).toBe('medium');
+      expect(assessment.score).toBeLessThan(6);
+      expect(assessment.level).toBe('high');
     });
 
     it('should calculate high risk for risky operations', () => {

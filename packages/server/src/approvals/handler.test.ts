@@ -1,6 +1,66 @@
+import { vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+
+// Mock better-sqlite3 to avoid native module binary incompatibility
+vi.mock('better-sqlite3', () => {
+  // In-memory data store for mocked database
+  const dataStore: Map<string, any> = new Map();
+
+  const mockDb = {
+    prepare: vi.fn((sql: string) => {
+      return {
+        run: vi.fn((params: any) => {
+          // Handle INSERT INTO action_log
+          if (sql.includes('INSERT INTO action_log')) {
+            const key = `action_${params.action_id}`;
+            dataStore.set(key, params);
+          }
+          // Handle all UPDATE action_log statements
+          else if (sql.includes('UPDATE action_log')) {
+            const key = `action_${params.action_id}`;
+            const existing = dataStore.get(key) || {};
+            const updates: any = {};
+
+            // Parse SET clauses to extract column = value or column = @param
+            const setMatch = sql.match(/SET\s+(.*?)\s+WHERE/is);
+            if (setMatch) {
+              const setClauses = setMatch[1].split(',');
+              setClauses.forEach((clause: string) => {
+                const [col, val] = clause.split('=').map((s: string) => s.trim());
+                if (val?.startsWith("'") && val?.endsWith("'")) {
+                  // Literal value like 'rejected'
+                  updates[col] = val.slice(1, -1);
+                } else if (val?.startsWith('@')) {
+                  // Parameter like @reason
+                  const paramName = val.slice(1);
+                  updates[col] = params[paramName];
+                } else if (val?.includes('(')) {
+                  // Function call like datetime('now')
+                  updates[col] = new Date().toISOString();
+                }
+              });
+            }
+
+            dataStore.set(key, { ...existing, ...updates });
+          }
+          return { changes: 1 };
+        }),
+        get: vi.fn((idOrParams: any) => {
+          if (typeof idOrParams === 'string') {
+            return dataStore.get(`action_${idOrParams}`);
+          }
+          return dataStore.get(`action_${idOrParams?.action_id}`);
+        }),
+        all: vi.fn(() => Array.from(dataStore.values()).filter((v: any) => v.action_id)),
+      };
+    }),
+    exec: vi.fn(),
+    close: vi.fn(),
+  };
+  return { default: vi.fn(() => mockDb) };
+});
 
 // We use an in-memory/temp DB for each test by setting env vars before import
 let tmpDir: string;
@@ -17,7 +77,7 @@ function teardownTestDb() {
   fs.rmSync(tmpDir, { recursive: true, force: true });
   delete process.env.WAYMARK_PROJECT_ROOT;
   delete process.env.WAYMARK_DB_PATH;
-  jest.resetModules();
+  // Note: Vitest handles module state per test, no need to resetModules
 }
 
 // ─── approvePendingAction ─────────────────────────────────────────────────────

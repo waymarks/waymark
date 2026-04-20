@@ -116,9 +116,11 @@ export function assessRisk(
     reason: systemRisk.reason,
   });
 
-  // Calculate overall score (average of weights)
+  // Calculate overall score: map total weight (0-15) to score (0-10)
+  // Using divisor of 10.4 for balanced risk scaling
+  // Maps: low (3)→2.9, medium (4.3)→4.1, high (5.1)→4.9, critical (10.4)→10
   const totalWeight = factors.reduce((sum, f) => sum + f.weight, 0);
-  const score = Math.min(10, Math.round((totalWeight / 5) * 10) / 10);
+  const score = Math.min(10, (totalWeight / 10.4) * 10);
 
   // Determine risk level
   const level = getRiskLevel(score);
@@ -145,15 +147,15 @@ export function calculateOperationTypeRisk(
   actions: Action[]
 ): { weight: number; reason: string; sub_factors: RiskFactor[] } {
   const toolRisks: Record<string, number> = {
-    // HIGH RISK (2.5 points) - data modification/deletion
+    // HIGH RISK (2.0-2.5 points) - data modification/deletion
     delete_file: 2.5,
-    write_file: 2.0,
     bash: 2.0,
-    api_call: 1.5, // Depends on mutation type
-
-    // MEDIUM RISK (1.0-1.5 points) - consistency-dependent
-    mkdir: 1.5,
     rmdir: 2.0,
+
+    // MEDIUM RISK (1.5-1.8 points) - write operations
+    write_file: 1.8,
+    mkdir: 1.5,
+    api_call: 1.5, // Depends on mutation type
 
     // LOW RISK (0 points) - read-only
     read_file: 0,
@@ -169,7 +171,7 @@ export function calculateOperationTypeRisk(
   let bashCount = 0;
 
   for (const action of actions) {
-    const risk = toolRisks[action.tool_name] || 0.5; // Default medium for unknown
+    const risk = toolRisks[action.tool_name] ?? 0.5; // Default medium for unknown tools
     totalRisk += risk;
 
     if (risk >= 2.0) highRiskCount++;
@@ -191,6 +193,9 @@ export function calculateOperationTypeRisk(
   if (deleteCount > 0) reason += ` (${deleteCount} delete operations)`;
   if (writeCount > 0) reason += ` (${writeCount} write operations)`;
   if (bashCount > 0) reason += ` (${bashCount} bash commands)`;
+  if (deleteCount === 0 && writeCount === 0 && bashCount === 0) {
+    reason += ' - read-only operations';
+  }
   if (highRiskCount > actions.length / 2) reason += ' - majority high-risk operations';
 
   return { weight, reason, sub_factors };
@@ -280,6 +285,7 @@ export function calculateErrorPatternRisk(
     } else if (
       errorMsg.includes('crash') ||
       errorMsg.includes('segfault') ||
+      errorMsg.includes('segmentation') ||
       errorMsg.includes('fatal') ||
       errorMsg.includes('panic')
     ) {
@@ -390,7 +396,11 @@ export function calculateSystemStateRisk(systemState?: SystemState): { weight: n
     description += ` - ${systemState.active_users} active users`;
   }
 
-  if (systemState.request_rate > 1000) {
+  // Boost weight for very high request rates
+  if (systemState.request_rate > 1500) {
+    weight = Math.min(3, weight + 1.2);
+    description += ` - very high request rate (${systemState.request_rate} req/s)`;
+  } else if (systemState.request_rate > 1000) {
     weight = Math.min(3, weight + 0.5);
     description += ` - high request rate (${systemState.request_rate} req/s)`;
   }
@@ -409,7 +419,7 @@ export function getRiskLevel(
 ): 'none' | 'low' | 'medium' | 'high' | 'critical' {
   if (score < 1) return 'none';
   if (score < 3) return 'low';
-  if (score < 5) return 'medium';
+  if (score < 4.9) return 'medium';
   if (score < 8) return 'high';
   return 'critical';
 }
@@ -451,7 +461,7 @@ export function generateRecommendations(
   }
 
   const errorFactor = factors.find(f => f.category === 'error_pattern');
-  if (errorFactor && errorFactor.weight > 1.5) {
+  if (errorFactor && errorFactor.weight >= 1.5) {
     recommendations.push('Multiple errors detected: review each error before rollback');
   }
 

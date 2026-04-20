@@ -10,6 +10,53 @@
  * - Integration with approval system
  */
 
+import { vi } from 'vitest';
+
+// Mock better-sqlite3 to avoid native module binary incompatibility
+vi.mock('better-sqlite3', () => {
+  const dataStore: Map<string, any> = new Map();
+  const mockDb = {
+    prepare: vi.fn((sql: string) => {
+      return {
+        run: vi.fn((params: any) => {
+          if (sql.includes('INSERT INTO')) {
+            const key = `action_${params.action_id || params.request_id || params.escalation_request_id || Math.random()}`;
+            dataStore.set(key, params);
+          } else if (sql.includes('UPDATE')) {
+            const id = params.action_id || params.request_id || params.escalation_request_id;
+            const key = `action_${id}`;
+            const existing = dataStore.get(key) || {};
+            const updates: any = {};
+            const setMatch = sql.match(/SET\s+(.*?)\s+WHERE/is);
+            if (setMatch) {
+              const setClauses = setMatch[1].split(',');
+              setClauses.forEach((clause: string) => {
+                const [col, val] = clause.split('=').map((s: string) => s.trim());
+                if (val?.startsWith("'") && val?.endsWith("'")) {
+                  updates[col] = val.slice(1, -1);
+                } else if (val?.startsWith('@')) {
+                  const paramName = val.slice(1);
+                  updates[col] = params[paramName];
+                }
+              });
+            }
+            dataStore.set(key, { ...existing, ...updates });
+          }
+          return { changes: 1 };
+        }),
+        get: vi.fn((idOrParams: any) => {
+          const id = typeof idOrParams === 'string' ? idOrParams : idOrParams?.action_id;
+          return dataStore.get(`action_${id}`);
+        }),
+        all: vi.fn(() => Array.from(dataStore.values())),
+      };
+    }),
+    exec: vi.fn(),
+    close: vi.fn(),
+  };
+  return { default: vi.fn(() => mockDb) };
+});
+
 import {
   checkAndEscalateStaleApprovals,
   determineEscalationTargets,
@@ -26,11 +73,11 @@ import {
 
 import * as db from '../db/database';
 
-jest.mock('../db/database');
+vi.mock('../db/database');
 
 describe('Escalation Manager', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('checkAndEscalateStaleApprovals', () => {
@@ -53,9 +100,9 @@ describe('Escalation Manager', () => {
         },
       ];
 
-      (db.getStaleApprovals as jest.Mock).mockReturnValue(staleApprovals);
-      (db.getAllEscalationRules as jest.Mock).mockReturnValue(rules);
-      (db.createEscalationRequest as jest.Mock).mockReturnValue(undefined);
+      (db.getStaleApprovals as vi.Mock).mockReturnValue(staleApprovals);
+      (db.getAllEscalationRules as vi.Mock).mockReturnValue(rules);
+      (db.createEscalationRequest as vi.Mock).mockReturnValue(undefined);
 
       const result = checkAndEscalateStaleApprovals();
 
@@ -66,8 +113,8 @@ describe('Escalation Manager', () => {
     });
 
     it('should handle no stale approvals', () => {
-      (db.getStaleApprovals as jest.Mock).mockReturnValue([]);
-      (db.getAllEscalationRules as jest.Mock).mockReturnValue([]);
+      (db.getStaleApprovals as vi.Mock).mockReturnValue([]);
+      (db.getAllEscalationRules as vi.Mock).mockReturnValue([]);
 
       const result = checkAndEscalateStaleApprovals();
 
@@ -80,8 +127,8 @@ describe('Escalation Manager', () => {
         { approval_request_id: 'apr-1', session_id: 'sess-1' },
       ];
 
-      (db.getStaleApprovals as jest.Mock).mockReturnValue(staleApprovals);
-      (db.getAllEscalationRules as jest.Mock).mockReturnValue([]);
+      (db.getStaleApprovals as vi.Mock).mockReturnValue(staleApprovals);
+      (db.getAllEscalationRules as vi.Mock).mockReturnValue([]);
 
       const result = checkAndEscalateStaleApprovals();
 
@@ -107,13 +154,13 @@ describe('Escalation Manager', () => {
         },
       ];
 
-      (db.getStaleApprovals as jest.Mock).mockReturnValue(staleApprovals);
-      (db.getAllEscalationRules as jest.Mock).mockReturnValue(rules);
-      (db.createEscalationRequest as jest.Mock).mockReturnValue(undefined);
+      (db.getStaleApprovals as vi.Mock).mockReturnValue(staleApprovals);
+      (db.getAllEscalationRules as vi.Mock).mockReturnValue(rules);
+      (db.createEscalationRequest as vi.Mock).mockReturnValue(undefined);
 
       checkAndEscalateStaleApprovals();
 
-      const call = (db.createEscalationRequest as jest.Mock).mock.calls[0];
+      const call = (db.createEscalationRequest as vi.Mock).mock.calls[0];
       expect(call).toHaveLength(5);
       // Verify deadline is roughly 4 hours from now
       const deadline = new Date(call[4]);
@@ -139,7 +186,7 @@ describe('Escalation Manager', () => {
         },
       ];
 
-      (db.getAllEscalationRules as jest.Mock).mockReturnValue(rules);
+      (db.getAllEscalationRules as vi.Mock).mockReturnValue(rules);
 
       const targets = determineEscalationTargets('apr-1');
 
@@ -147,7 +194,7 @@ describe('Escalation Manager', () => {
     });
 
     it('should return empty array if no rules exist', () => {
-      (db.getAllEscalationRules as jest.Mock).mockReturnValue([]);
+      (db.getAllEscalationRules as vi.Mock).mockReturnValue([]);
 
       const targets = determineEscalationTargets('apr-1');
 
@@ -178,7 +225,7 @@ describe('Escalation Manager', () => {
         },
       ];
 
-      (db.getAllEscalationRules as jest.Mock).mockReturnValue(rules);
+      (db.getAllEscalationRules as vi.Mock).mockReturnValue(rules);
 
       const targets = determineEscalationTargets('apr-1');
 
@@ -200,9 +247,9 @@ describe('Escalation Manager', () => {
     };
 
     it('should accept valid proceed decision', () => {
-      (db.getEscalationRequest as jest.Mock).mockReturnValue(mockEscalation);
-      (db.getEscalationDecisions as jest.Mock).mockReturnValue([]);
-      (db.submitEscalationDecision as jest.Mock).mockReturnValue(undefined);
+      (db.getEscalationRequest as vi.Mock).mockReturnValue(mockEscalation);
+      (db.getEscalationDecisions as vi.Mock).mockReturnValue([]);
+      (db.submitEscalationDecision as vi.Mock).mockReturnValue(undefined);
 
       const result = submitEscalationDecision('esc-1', 'mgr-1', 'proceed', 'looks good');
 
@@ -217,9 +264,9 @@ describe('Escalation Manager', () => {
     });
 
     it('should accept valid block decision', () => {
-      (db.getEscalationRequest as jest.Mock).mockReturnValue(mockEscalation);
-      (db.getEscalationDecisions as jest.Mock).mockReturnValue([]);
-      (db.submitEscalationDecision as jest.Mock).mockReturnValue(undefined);
+      (db.getEscalationRequest as vi.Mock).mockReturnValue(mockEscalation);
+      (db.getEscalationDecisions as vi.Mock).mockReturnValue([]);
+      (db.submitEscalationDecision as vi.Mock).mockReturnValue(undefined);
 
       const result = submitEscalationDecision('esc-1', 'mgr-1', 'block', 'needs review');
 
@@ -227,7 +274,7 @@ describe('Escalation Manager', () => {
     });
 
     it('should reject decision from unauthorized target', () => {
-      (db.getEscalationRequest as jest.Mock).mockReturnValue(mockEscalation);
+      (db.getEscalationRequest as vi.Mock).mockReturnValue(mockEscalation);
 
       expect(() => {
         submitEscalationDecision('esc-1', 'unauthorized-user', 'proceed');
@@ -235,8 +282,8 @@ describe('Escalation Manager', () => {
     });
 
     it('should reject duplicate decisions from same target', () => {
-      (db.getEscalationRequest as jest.Mock).mockReturnValue(mockEscalation);
-      (db.getEscalationDecisions as jest.Mock).mockReturnValue([
+      (db.getEscalationRequest as vi.Mock).mockReturnValue(mockEscalation);
+      (db.getEscalationDecisions as vi.Mock).mockReturnValue([
         { target_id: 'mgr-1', decision: 'proceed', reason: 'initial' },
       ]);
 
@@ -246,7 +293,7 @@ describe('Escalation Manager', () => {
     });
 
     it('should throw error for non-existent escalation', () => {
-      (db.getEscalationRequest as jest.Mock).mockReturnValue(null);
+      (db.getEscalationRequest as vi.Mock).mockReturnValue(null);
 
       expect(() => {
         submitEscalationDecision('non-existent', 'mgr-1', 'proceed');
@@ -268,8 +315,8 @@ describe('Escalation Manager', () => {
     };
 
     it('should return pending status with no decisions', () => {
-      (db.getEscalationRequest as jest.Mock).mockReturnValue(mockEscalation);
-      (db.getEscalationDecisions as jest.Mock).mockReturnValue([]);
+      (db.getEscalationRequest as vi.Mock).mockReturnValue(mockEscalation);
+      (db.getEscalationDecisions as vi.Mock).mockReturnValue([]);
 
       const status = getEscalationStatus('esc-1');
 
@@ -279,8 +326,8 @@ describe('Escalation Manager', () => {
     });
 
     it('should return blocked status with any block decision', () => {
-      (db.getEscalationRequest as jest.Mock).mockReturnValue(mockEscalation);
-      (db.getEscalationDecisions as jest.Mock).mockReturnValue([
+      (db.getEscalationRequest as vi.Mock).mockReturnValue(mockEscalation);
+      (db.getEscalationDecisions as vi.Mock).mockReturnValue([
         { target_id: 'mgr-1', decision: 'block', reason: 'risky' },
         { target_id: 'mgr-2', decision: 'proceed', reason: null },
       ]);
@@ -293,8 +340,8 @@ describe('Escalation Manager', () => {
     });
 
     it('should return proceeded status when all targets proceed', () => {
-      (db.getEscalationRequest as jest.Mock).mockReturnValue(mockEscalation);
-      (db.getEscalationDecisions as jest.Mock).mockReturnValue([
+      (db.getEscalationRequest as vi.Mock).mockReturnValue(mockEscalation);
+      (db.getEscalationDecisions as vi.Mock).mockReturnValue([
         { target_id: 'mgr-1', decision: 'proceed', reason: null },
         { target_id: 'mgr-2', decision: 'proceed', reason: 'approved' },
       ]);
@@ -307,8 +354,8 @@ describe('Escalation Manager', () => {
     });
 
     it('should return pending status with partial decisions', () => {
-      (db.getEscalationRequest as jest.Mock).mockReturnValue(mockEscalation);
-      (db.getEscalationDecisions as jest.Mock).mockReturnValue([
+      (db.getEscalationRequest as vi.Mock).mockReturnValue(mockEscalation);
+      (db.getEscalationDecisions as vi.Mock).mockReturnValue([
         { target_id: 'mgr-1', decision: 'proceed', reason: null },
       ]);
 
@@ -319,7 +366,7 @@ describe('Escalation Manager', () => {
     });
 
     it('should throw error for non-existent escalation', () => {
-      (db.getEscalationRequest as jest.Mock).mockReturnValue(null);
+      (db.getEscalationRequest as vi.Mock).mockReturnValue(null);
 
       expect(() => {
         getEscalationStatus('non-existent');
@@ -329,7 +376,7 @@ describe('Escalation Manager', () => {
 
   describe('canProceedWithRollbackAfterEscalation', () => {
     it('should allow rollback if no escalation exists', () => {
-      (db.getPendingEscalations as jest.Mock).mockReturnValue([]);
+      (db.getPendingEscalations as vi.Mock).mockReturnValue([]);
 
       const canProceed = canProceedWithRollbackAfterEscalation('apr-1');
 
@@ -337,16 +384,16 @@ describe('Escalation Manager', () => {
     });
 
     it('should block rollback if escalation is blocked', () => {
-      (db.getPendingEscalations as jest.Mock).mockReturnValue([
+      (db.getPendingEscalations as vi.Mock).mockReturnValue([
         { request_id: 'esc-1', approval_request_id: 'apr-1', session_id: 'sess-1' },
       ]);
-      (db.getEscalationRequest as jest.Mock).mockReturnValue({
+      (db.getEscalationRequest as vi.Mock).mockReturnValue({
         request_id: 'esc-1',
         approval_request_id: 'apr-1',
         session_id: 'sess-1',
         escalation_targets: '["mgr-1"]',
       });
-      (db.getEscalationDecisions as jest.Mock).mockReturnValue([
+      (db.getEscalationDecisions as vi.Mock).mockReturnValue([
         { target_id: 'mgr-1', decision: 'block' },
       ]);
 
@@ -356,16 +403,16 @@ describe('Escalation Manager', () => {
     });
 
     it('should allow rollback if escalation is proceeded', () => {
-      (db.getPendingEscalations as jest.Mock).mockReturnValue([
+      (db.getPendingEscalations as vi.Mock).mockReturnValue([
         { request_id: 'esc-1', approval_request_id: 'apr-1', session_id: 'sess-1' },
       ]);
-      (db.getEscalationRequest as jest.Mock).mockReturnValue({
+      (db.getEscalationRequest as vi.Mock).mockReturnValue({
         request_id: 'esc-1',
         approval_request_id: 'apr-1',
         session_id: 'sess-1',
         escalation_targets: '["mgr-1", "mgr-2"]',
       });
-      (db.getEscalationDecisions as jest.Mock).mockReturnValue([
+      (db.getEscalationDecisions as vi.Mock).mockReturnValue([
         { target_id: 'mgr-1', decision: 'proceed' },
         { target_id: 'mgr-2', decision: 'proceed' },
       ]);
@@ -376,16 +423,16 @@ describe('Escalation Manager', () => {
     });
 
     it('should block rollback if escalation is still pending', () => {
-      (db.getPendingEscalations as jest.Mock).mockReturnValue([
+      (db.getPendingEscalations as vi.Mock).mockReturnValue([
         { request_id: 'esc-1', approval_request_id: 'apr-1', session_id: 'sess-1' },
       ]);
-      (db.getEscalationRequest as jest.Mock).mockReturnValue({
+      (db.getEscalationRequest as vi.Mock).mockReturnValue({
         request_id: 'esc-1',
         approval_request_id: 'apr-1',
         session_id: 'sess-1',
         escalation_targets: '["mgr-1", "mgr-2"]',
       });
-      (db.getEscalationDecisions as jest.Mock).mockReturnValue([
+      (db.getEscalationDecisions as vi.Mock).mockReturnValue([
         { target_id: 'mgr-1', decision: 'proceed' },
       ]);
 
@@ -395,10 +442,10 @@ describe('Escalation Manager', () => {
     });
 
     it('should handle errors gracefully and block rollback', () => {
-      (db.getPendingEscalations as jest.Mock).mockReturnValue([
+      (db.getPendingEscalations as vi.Mock).mockReturnValue([
         { request_id: 'esc-1', approval_request_id: 'apr-1', session_id: 'sess-1' },
       ]);
-      (db.getEscalationRequest as jest.Mock).mockImplementation(() => {
+      (db.getEscalationRequest as vi.Mock).mockImplementation(() => {
         throw new Error('DB error');
       });
 
@@ -424,7 +471,7 @@ describe('Escalation Manager', () => {
         },
       ];
 
-      (db.getEscalationHistory as jest.Mock).mockReturnValue(history);
+      (db.getEscalationHistory as vi.Mock).mockReturnValue(history);
 
       const result = getEscalationHistoryForSession('sess-1');
 
@@ -433,7 +480,7 @@ describe('Escalation Manager', () => {
     });
 
     it('should return empty array if no history', () => {
-      (db.getEscalationHistory as jest.Mock).mockReturnValue([]);
+      (db.getEscalationHistory as vi.Mock).mockReturnValue([]);
 
       const result = getEscalationHistoryForSession('sess-1');
 
@@ -443,18 +490,18 @@ describe('Escalation Manager', () => {
 
   describe('Escalation Scheduler', () => {
     beforeEach(() => {
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       stopEscalationScheduler(); // Ensure scheduler is stopped before tests
     });
 
     afterEach(() => {
-      jest.useRealTimers();
+      vi.useRealTimers();
       stopEscalationScheduler();
     });
 
     it('should start scheduler when enabled', () => {
-      (db.getStaleApprovals as jest.Mock).mockReturnValue([]);
-      (db.getAllEscalationRules as jest.Mock).mockReturnValue([]);
+      (db.getStaleApprovals as vi.Mock).mockReturnValue([]);
+      (db.getAllEscalationRules as vi.Mock).mockReturnValue([]);
 
       startEscalationScheduler({ interval_ms: 60000, enabled: true });
 
@@ -468,8 +515,8 @@ describe('Escalation Manager', () => {
     });
 
     it('should stop scheduler', () => {
-      (db.getStaleApprovals as jest.Mock).mockReturnValue([]);
-      (db.getAllEscalationRules as jest.Mock).mockReturnValue([]);
+      (db.getStaleApprovals as vi.Mock).mockReturnValue([]);
+      (db.getAllEscalationRules as vi.Mock).mockReturnValue([]);
 
       startEscalationScheduler({ interval_ms: 60000, enabled: true });
       expect(isSchedulerRunning()).toBe(true);
@@ -479,23 +526,23 @@ describe('Escalation Manager', () => {
     });
 
     it('should check for stale approvals at regular intervals', () => {
-      (db.getStaleApprovals as jest.Mock).mockReturnValue([]);
-      (db.getAllEscalationRules as jest.Mock).mockReturnValue([]);
+      (db.getStaleApprovals as vi.Mock).mockReturnValue([]);
+      (db.getAllEscalationRules as vi.Mock).mockReturnValue([]);
 
       startEscalationScheduler({ interval_ms: 60000, enabled: true });
 
-      jest.advanceTimersByTime(60000);
+      vi.advanceTimersByTime(60000);
       expect(db.getStaleApprovals).toHaveBeenCalled();
 
-      jest.advanceTimersByTime(60000);
+      vi.advanceTimersByTime(60000);
       expect(db.getStaleApprovals).toHaveBeenCalledTimes(2);
 
       stopEscalationScheduler();
     });
 
     it('should prevent multiple scheduler instances', () => {
-      (db.getStaleApprovals as jest.Mock).mockReturnValue([]);
-      (db.getAllEscalationRules as jest.Mock).mockReturnValue([]);
+      (db.getStaleApprovals as vi.Mock).mockReturnValue([]);
+      (db.getAllEscalationRules as vi.Mock).mockReturnValue([]);
 
       startEscalationScheduler({ interval_ms: 60000, enabled: true });
       const firstRunStatus = isSchedulerRunning();
@@ -507,14 +554,14 @@ describe('Escalation Manager', () => {
     });
 
     it('should handle scheduler errors gracefully', () => {
-      (db.getStaleApprovals as jest.Mock).mockImplementation(() => {
+      (db.getStaleApprovals as vi.Mock).mockImplementation(() => {
         throw new Error('DB connection error');
       });
 
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation();
 
       startEscalationScheduler({ interval_ms: 1000, enabled: true });
-      jest.advanceTimersByTime(1000);
+      vi.advanceTimersByTime(1000);
 
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('[Escalation] Scheduler error'),
@@ -545,9 +592,9 @@ describe('Escalation Manager', () => {
         },
       ];
 
-      (db.getStaleApprovals as jest.Mock).mockReturnValue(staleApprovals);
-      (db.getAllEscalationRules as jest.Mock).mockReturnValue(rules);
-      (db.createEscalationRequest as jest.Mock).mockReturnValue(undefined);
+      (db.getStaleApprovals as vi.Mock).mockReturnValue(staleApprovals);
+      (db.getAllEscalationRules as vi.Mock).mockReturnValue(rules);
+      (db.createEscalationRequest as vi.Mock).mockReturnValue(undefined);
 
       const checkResult = checkAndEscalateStaleApprovals();
       expect(checkResult.escalationsCreated).toHaveLength(1);
@@ -566,22 +613,24 @@ describe('Escalation Manager', () => {
         decision: null,
       };
 
-      (db.getEscalationRequest as jest.Mock).mockReturnValue(mockEscalation);
-      (db.getEscalationDecisions as jest.Mock)
-        .mockReturnValueOnce([]) // First call (before any decisions)
-        .mockReturnValueOnce([]) // Second call (before mgr-1's decision)
-        .mockReturnValueOnce([
-          // Third call (after both decisions)
-          { target_id: 'mgr-1', decision: 'proceed' },
-          { target_id: 'mgr-2', decision: 'proceed' },
-        ]);
-      (db.submitEscalationDecision as jest.Mock).mockReturnValue(undefined);
+      (db.getEscalationRequest as vi.Mock).mockReturnValue(mockEscalation);
+
+      // Track decisions made during this test
+      const decisions: { target_id: string; decision: string }[] = [];
+      (db.getEscalationDecisions as vi.Mock).mockImplementation(() => {
+        return decisions;
+      });
+      (db.submitEscalationDecision as vi.Mock).mockImplementation(
+        (decision_id: string, escalation_request_id: string, target_id: string, decision: string, reason?: string) => {
+          decisions.push({ target_id, decision });
+        }
+      );
 
       submitEscalationDecision(escalationId, 'mgr-1', 'proceed');
       submitEscalationDecision(escalationId, 'mgr-2', 'proceed');
 
       // Step 3: Check if rollback can proceed
-      (db.getPendingEscalations as jest.Mock).mockReturnValue([
+      (db.getPendingEscalations as vi.Mock).mockReturnValue([
         { request_id: escalationId, approval_request_id: 'apr-1', session_id: 'sess-1' },
       ]);
 
@@ -606,15 +655,15 @@ describe('Escalation Manager', () => {
         decision: null,
       };
 
-      (db.getEscalationRequest as jest.Mock).mockReturnValue(mockEscalation);
-      (db.getEscalationDecisions as jest.Mock).mockReturnValue([
+      (db.getEscalationRequest as vi.Mock).mockReturnValue(mockEscalation);
+      (db.getEscalationDecisions as vi.Mock).mockReturnValue([
         { target_id: 'mgr-1', decision: 'block', reason: 'needs more review' },
       ]);
 
       const status = getEscalationStatus(escalationId);
       expect(status.status).toBe('blocked');
 
-      (db.getPendingEscalations as jest.Mock).mockReturnValue([
+      (db.getPendingEscalations as vi.Mock).mockReturnValue([
         { request_id: escalationId, approval_request_id: 'apr-1', session_id: 'sess-1' },
       ]);
 
