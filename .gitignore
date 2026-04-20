@@ -21,6 +21,8 @@ data/
 # Waymark runtime
 .waymark/
 .mcp.json
+waymark.config.json
+CLAUDE.md
 
 # Logs
 *.log
@@ -44,3 +46,7 @@ coverage/
 # Temporary
 tmp/
 temp/
+
+# Waymark
+waymark.db
+data/waymark.db
