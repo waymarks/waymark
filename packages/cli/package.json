@@ -1,6 +1,6 @@
 {
   "name": "@way_marks/cli",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Control what AI agents can do in your codebase",
   "author": "Waymark <hello@waymarks.dev>",
   "license": "MIT",

@@ -171,22 +171,30 @@ api.slack.com/apps → Incoming Webhooks
 
 - Node.js 18 or higher
 - Claude Code (for MCP integration)
-- macOS or Linux (Windows support coming)
+- macOS, Linux, or Windows
+
+---
+
+## What Works
+
+✅ **Team approval routing** — Assign approvals to specific teammates with escalation  
+✅ **Session-level rollback** — Undo an entire agent run at once  
+✅ **Email notifications** — SMTP-based notifications for pending approvals  
+✅ **Multi-platform** — macOS, Linux, and Windows all supported  
+✅ **Slack integration** — Real-time notifications to Slack  
+✅ **Policy enforcement** — Block paths, commands, require approvals  
+✅ **Action logging** — Full audit trail with rollback capability  
 
 ---
 
 ## Roadmap
 
-- [ ] Team approval routing
-  (assign approvals to specific teammates)
-- [ ] Session-level rollback
-  (undo an entire agent run at once)
 - [ ] CLI agent wrapping
   (waymark run <any-agent-command>)
 - [ ] Proxy mode
   (drop-in for any OpenAI-compatible agent)
-- [ ] Email notifications
-- [ ] Windows support
+- [ ] REST API integration tests
+  (comprehensive endpoint coverage)
 
 ---
 
