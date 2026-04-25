@@ -1,0 +1,125 @@
+/* ============================================================
+   waymark — design tokens
+   ============================================================ */
+
+:root {
+  --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Dark palette — default */
+  --bg-0: #0a0b0d;
+  --bg-1: #101215;
+  --bg-2: #16191d;
+  --bg-3: #1d2126;
+  --bg-4: #262b31;
+  --line: #22262c;
+  --line-strong: #2d3238;
+
+  --ink-0: #f5f6f7;
+  --ink-1: #d6d9dd;
+  --ink-2: #a8aeb6;       /* tightened from #a0a6ad to lift small text above 4.5:1 */
+  --ink-3: #8c929b;       /* tightened from #6b7079 (3.95:1) to ~6.2:1 on bg-0 */
+  --ink-4: #6a7079;       /* tightened from #464a52 (2.21:1) — for section-labels and dim chevrons */
+
+  /* Accent — desaturated teal (overridable at runtime) */
+  --acc: oklch(0.72 0.09 195);
+  --acc-dim: oklch(0.72 0.09 195 / 0.15);
+  --acc-ink: oklch(0.95 0.03 195);
+
+  /* Semantic */
+  --ok: oklch(0.74 0.13 155);
+  --ok-dim: oklch(0.74 0.13 155 / 0.14);
+  --warn: oklch(0.78 0.13 75);
+  --warn-dim: oklch(0.78 0.13 75 / 0.14);
+  --err: oklch(0.68 0.19 25);
+  --err-dim: oklch(0.68 0.19 25 / 0.14);
+  --info: oklch(0.72 0.12 240);
+  --info-dim: oklch(0.72 0.12 240 / 0.14);
+  --pending: oklch(0.8 0.14 85);
+  --pending-dim: oklch(0.8 0.14 85 / 0.14);
+
+  /* Geometry */
+  --r-1: 4px;
+  --r-2: 6px;
+  --r-3: 10px;
+  --r-4: 14px;
+
+  --nav-w: 232px;
+  --drawer-w: 560px;
+
+  --shadow-drawer: 0 24px 48px -12px rgba(0, 0, 0, 0.6), 0 8px 16px -4px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 8px 24px -8px rgba(0, 0, 0, 0.5);
+
+  /* Density defaults */
+  --row-py: 10px;
+  --gap: 14px;
+
+  /* Focus ring */
+  --focus-ring: 0 0 0 2px var(--bg-0), 0 0 0 4px var(--acc);
+}
+
+[data-theme='light'] {
+  --bg-0: #fafaf8;
+  --bg-1: #ffffff;
+  --bg-2: #f4f4f2;
+  --bg-3: #ebebe8;
+  --bg-4: #dcdcd8;
+  --line: #dedcd6;
+  --line-strong: #c4c2bc;
+
+  --ink-0: #0a0b0d;
+  --ink-1: #1d2126;
+  /* WCAG AA bumps: ink-2 ≥ 7:1 / ink-3 ≥ 4.5:1 on bg-0 (#fafaf8). */
+  --ink-2: #3a3e44;
+  --ink-3: #5a5e65;
+  --ink-4: #8c9099;
+
+  /* Accent darkened so dim-bg tokens read on white/cream surfaces. */
+  --acc: oklch(0.5 0.1 195);
+  --acc-dim: oklch(0.5 0.1 195 / 0.1);
+  --acc-ink: oklch(0.32 0.09 195);
+
+  --ok: oklch(0.48 0.14 155);
+  --ok-dim: oklch(0.48 0.14 155 / 0.12);
+  --warn: oklch(0.56 0.14 75);
+  --warn-dim: oklch(0.56 0.14 75 / 0.12);
+  --err: oklch(0.5 0.2 25);
+  --err-dim: oklch(0.5 0.2 25 / 0.12);
+  --info: oklch(0.5 0.14 240);
+  --info-dim: oklch(0.5 0.14 240 / 0.12);
+  --pending: oklch(0.58 0.15 85);
+  --pending-dim: oklch(0.58 0.15 85 / 0.12);
+}
+
+/* Density variants */
+[data-density='compact'] { --row-py: 8px; --gap: 10px; }
+[data-density='comfy']   { --row-py: 14px; --gap: 16px; }
+[data-density='spacious']{ --row-py: 20px; --gap: 22px; }
+
+/* ------- reset ------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font-sans);
+  font-feature-settings: 'ss01', 'cv11';
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-1);
+  background: var(--bg-0);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+button:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-2); }
+input, select, textarea { font: inherit; color: inherit; }
+input:focus-visible { outline: none; }
+a { color: inherit; text-decoration: none; }
+code, kbd, .mono { font-family: var(--font-mono); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

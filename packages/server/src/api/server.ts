@@ -8,6 +8,7 @@ import { loadConfig } from '../policies/engine';
 import { approvePendingAction, rejectPendingAction } from '../approvals/handler';
 import { determineRequiredApprovers, createApprovalRequestForSession, submitApprovalDecision, getApprovalStatus, canProceedWithRollback } from '../approval/manager';
 import { submitEscalationDecision as submitEscalationDecisionManager, getEscalationStatus, canProceedWithRollbackAfterEscalation, getEscalationHistoryForSession } from '../escalation/manager';
+import { attachSubscriber, emit } from './events';
 
 // Import registry for Phase 2 hub navigation
 const registryPath = path.join(process.env.HOME || process.env.USERPROFILE || '', '.waymark', 'registry.json');
@@ -64,9 +65,24 @@ const PORT = parseInt(process.env.WAYMARK_PORT || '3001', 10);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve UI — path works for both ts-node (src/api/) and compiled (dist/api/)
-const UI_DIR = path.resolve(__dirname, '../../src/ui');
-app.use(express.static(UI_DIR));
+// Serve UI — path works for both ts-node (src/api/) and compiled (dist/api/).
+const UI_DIR = path.resolve(__dirname, '../../src/ui-dist');
+const UI_INDEX = path.join(UI_DIR, 'index.html');
+const UI_BUILT = fs.existsSync(UI_INDEX);
+if (UI_BUILT) {
+  app.use(express.static(UI_DIR));
+} else {
+  console.warn(
+    '[waymark] ui-dist/ not found — dashboard will return a setup banner. ' +
+    'Run `npm run build -w @way_marks/web` to build the dashboard.',
+  );
+}
+
+// GET /api/events — Server-Sent Events stream for live UI updates
+app.get('/api/events', (req, res) => {
+  const detach = attachSubscriber(res);
+  req.on('close', detach);
+});
 
 // GET /api/actions — list all actions (or ?count=true for pending count)
 app.get('/api/actions', (req, res) => {
@@ -165,6 +181,7 @@ app.post('/api/actions/:action_id/approve', async (req, res) => {
       const status = result.error === 'Action not found' ? 404 : 400;
       return res.status(status).json({ error: result.error });
     }
+    emit('actions', { action_id: req.params.action_id, kind: 'approved' });
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -180,6 +197,7 @@ app.post('/api/actions/:action_id/reject', async (req, res) => {
       const status = result.error === 'Action not found' ? 404 : 400;
       return res.status(status).json({ error: result.error });
     }
+    emit('actions', { action_id: req.params.action_id, kind: 'rejected' });
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -244,6 +262,7 @@ app.post('/api/actions/:action_id/rollback', (req, res) => {
     if (!action.before_snapshot) {
       fs.unlinkSync(action.target_path);
       markRolledBack(action.action_id);
+      emit('actions', { action_id: action.action_id, kind: 'rolled_back' });
       return res.json({ success: true, action: 'deleted', message: `Deleted new file: ${action.target_path}` });
     }
 
@@ -252,6 +271,7 @@ app.post('/api/actions/:action_id/rollback', (req, res) => {
     fs.writeFileSync(action.target_path, action.before_snapshot, 'utf8');
 
     markRolledBack(action.action_id);
+    emit('actions', { action_id: action.action_id, kind: 'rolled_back' });
 
     res.json({ success: true, action: 'restored', message: `Restored ${action.target_path} to previous state` });
   } catch (err: any) {
@@ -372,6 +392,8 @@ app.post('/api/sessions/:session_id/rollback', (req, res) => {
       });
     }
 
+    emit('sessions', { session_id, kind: 'rolled_back', count: actions.length });
+    emit('actions', { session_id, kind: 'session_rolled_back' });
     res.json({
       success: true,
       message: `Rolled back session ${session_id}`,
@@ -486,6 +508,7 @@ app.post('/api/team/members', (req, res) => {
     }
 
     addTeamMember(member_id, name, email, added_by, slack_id);
+    emit('team', { member_id, kind: 'added' });
     res.json({ success: true, member_id, message: `Added team member: ${name}` });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -503,6 +526,7 @@ app.delete('/api/team/members/:member_id', (req, res) => {
     }
 
     removeTeamMember(member_id);
+    emit('team', { member_id, kind: 'removed' });
     res.json({ success: true, message: `Removed team member: ${member.name}` });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -530,6 +554,7 @@ app.post('/api/approval-routes', (req, res) => {
     }
 
     addApprovalRoute(route_id, name, approver_ids, created_by, description, condition_type, condition_json);
+    emit('approval-routes', { route_id, kind: 'added' });
     res.json({ success: true, route_id, message: `Created approval route: ${name}` });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -548,6 +573,7 @@ app.put('/api/approval-routes/:route_id', (req, res) => {
     }
 
     updateApprovalRoute(route_id, { name, description, approver_ids });
+    emit('approval-routes', { route_id, kind: 'updated' });
     res.json({ success: true, message: `Updated approval route: ${route_id}` });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -565,6 +591,7 @@ app.delete('/api/approval-routes/:route_id', (req, res) => {
     }
 
     deleteApprovalRoute(route_id);
+    emit('approval-routes', { route_id, kind: 'deleted' });
     res.json({ success: true, message: `Deleted approval route: ${route_id}` });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -617,7 +644,7 @@ app.post('/api/approvals/:request_id/approve', (req, res) => {
     }
 
     const status = submitApprovalDecision(request_id, approver_id, 'approve', reason);
-
+    emit('approvals', { request_id, kind: 'approve', approver_id });
     res.json({
       success: true,
       message: `Approved by ${approver_id}`,
@@ -639,7 +666,7 @@ app.post('/api/approvals/:request_id/reject', (req, res) => {
     }
 
     const status = submitApprovalDecision(request_id, approver_id, 'reject', reason);
-
+    emit('approvals', { request_id, kind: 'reject', approver_id });
     res.json({
       success: true,
       message: `Rejected by ${approver_id}`,
@@ -691,6 +718,7 @@ app.post('/api/escalations/rules', (req, res) => {
     }
 
     addEscalationRule(rule_id, name, escalation_targets, created_by, description, timeout_hours);
+    emit('escalation-rules', { rule_id, kind: 'added' });
     res.json({ success: true, rule_id, message: `Created escalation rule: ${name}` });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -709,6 +737,7 @@ app.put('/api/escalations/rules/:rule_id', (req, res) => {
     }
 
     updateEscalationRule(rule_id, { name, description, escalation_targets, timeout_hours });
+    emit('escalation-rules', { rule_id, kind: 'updated' });
     res.json({ success: true, message: `Updated escalation rule: ${rule_id}` });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -726,6 +755,7 @@ app.delete('/api/escalations/rules/:rule_id', (req, res) => {
     }
 
     deleteEscalationRule(rule_id);
+    emit('escalation-rules', { rule_id, kind: 'deleted' });
     res.json({ success: true, message: `Deleted escalation rule: ${rule_id}` });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -781,7 +811,8 @@ app.post('/api/escalations/:request_id/decide', (req, res) => {
     }
 
     const status = submitEscalationDecisionManager(request_id, target_id, decision, reason);
-
+    emit('escalations', { request_id, kind: 'decided', decision, target_id });
+    emit('approvals', { request_id, kind: 'escalation_decided' });
     res.json({
       success: true,
       message: `${target_id} decided to ${decision}`,
@@ -999,9 +1030,20 @@ app.delete('/api/remediation/policies/:policy_id', (req, res) => {
   }
 });
 
-// Fallback: serve UI for any unmatched route
-app.get('*', (req, res) => {
-  res.sendFile(path.join(UI_DIR, 'index.html'));
+// Fallback: serve UI for any unmatched route. If the dashboard hasn't been
+// built yet, emit a friendly setup banner instead of a 404.
+app.get('*', (_req, res) => {
+  if (UI_BUILT) {
+    return res.sendFile(UI_INDEX);
+  }
+  res.status(503).type('html').send(`<!doctype html>
+<html><head><meta charset="utf-8"/><title>Waymark — dashboard not built</title>
+<style>body{font:14px/1.5 -apple-system,system-ui,sans-serif;color:#1d2126;background:#fafaf8;display:grid;place-items:center;min-height:100vh;margin:0}main{max-width:520px;padding:32px}h1{margin:0 0 8px;font-size:18px}code{background:#ebebe8;padding:2px 6px;border-radius:4px;font-family:ui-monospace,Menlo,monospace}</style>
+</head><body><main>
+<h1>Dashboard not built</h1>
+<p>The Waymark API is running, but the React dashboard hasn't been built yet.</p>
+<p>Run <code>npm run build -w @way_marks/web</code> from the project root, then refresh.</p>
+</main></body></html>`);
 });
 
 app.listen(PORT, () => {

@@ -1,4 +1,4 @@
-## [2.0.3] — 2026-04-21
+## [3.0.0] — 2026-04-25
 
 ### Added
 - (Add changes here)
@@ -8,6 +8,33 @@
 
 ### Fixed
 - (Add changes here)
+
+---
+
+## [2.0.3] — 2026-04-26
+
+### Added
+
+**Dashboard UI redesign — full rewrite**
+- New React + Vite + TypeScript dashboard in a new `packages/web` workspace, served by Express as static files from `packages/server/src/ui-dist/`. Token-driven design system (oklch palette, IBM Plex Sans/Mono, dark + light themes, density modes), 232 px sidebar + topbar + 560 px right-side detail drawer.
+- Six fully-implemented screens: **Actions** (filter pills, session groups, side-by-side diff drawer, approve/reject/rollback), **Sessions** (live aggregate cards + atomic session rollback), **Approvals** (merged inbox over `/api/approvals/pending` + `/api/escalations/pending`, Pending / Escalated / History tabs), **Policy** (allowed paths · blocked paths · requires-approval · blocked commands with plain/regex distinction), **Stats** (stat cards, 5-hour activity sparkline, by-tool chart, hot-paths list), **Settings** (Preferences with reviewer identity · Team CRUD · Approval routes CRUD · Escalation rules CRUD · Remediation blocks · Projects/Hub picker).
+- **Server-Sent Events** stream at `GET /api/events`; UI updates within ~400 ms of any mutation. 30 s polling kept as a backstop.
+- **⌘K / Ctrl-K command palette** with grouped commands (Navigation · Commands · Actions); fuzzy-search any action by tool / id / target / status.
+- **Accessibility**: focus traps on Drawer + ConfirmModal, axe-core (WCAG 2.1 AA) shows zero serious or critical violations on every route, contrast tightened in both themes.
+- The legacy 1,453-line vanilla HTML dashboard has been removed. The server now serves a small "Dashboard not built" setup page if `ui-dist/` is missing.
+
+### Changed
+
+**Release pipeline**
+- `scripts/release.sh` now bumps `packages/web/package.json` alongside cli and server, and rewrites the cli's `@way_marks/server` dependency pin to the new release version on every bump. The pre-bump validation requires all three workspace versions to match.
+- `scripts/pre-release-check.sh` gained five new gates: web package name, web `private: true` enforcement, three-way version match, cli→server pin sync, and `packages/server/src/ui-dist/index.html` existence.
+- `.github/workflows/release.yml` has a new "Verify dashboard built" step between build and publish.
+
+### Fixed
+
+- **Stale CLI dependency**: `@way_marks/cli` had been pinning `@way_marks/server` to `0.5.2` (drifted ~1.5 years). Now in lockstep with the release version on every publish.
+- **Light-mode `.btn.primary` contrast** — text was hardcoded to dark, unreadable on the new light tokens.
+- **Action row a11y** — eliminated `nested-interactive` violations by refactoring the row container to a non-interactive `<div>` with a single `<button>` covering the click area.
 
 ---
 
