@@ -1,4 +1,4 @@
-## [4.0.1] — 2026-04-27
+## [4.0.2] — 2026-04-27
 
 ### Added
 - (Add changes here)
@@ -8,6 +8,14 @@
 
 ### Fixed
 - (Add changes here)
+
+---
+
+## [4.0.1] — 2026-04-27
+
+### Fixed
+
+- **CI secret-scan false positive.** The `Check for secrets` step in `.github/workflows/ci.yml` was matching the bare prefix `npm_`, which fired on any reference to npm-defined env vars (`npm_config_global`, `npm_lifecycle_event`, etc.) — perfectly normal in install scripts. Tightened the regex to match only secret-shaped strings: `sk-ant-…` (Anthropic keys), `ANTHROPIC_API_KEY = "…"` (hardcoded assignments), and `npm_…` followed by 32+ alphanumerics (real publish tokens). v4.0.0 source unchanged; this is a CI-only hotfix.
 
 ---
 
