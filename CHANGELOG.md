@@ -1,4 +1,4 @@
-## [4.0.0] — 2026-04-27
+## [4.0.1] — 2026-04-27
 
 ### Added
 - (Add changes here)
@@ -8,6 +8,37 @@
 
 ### Fixed
 - (Add changes here)
+
+---
+
+## [4.0.0] — 2026-04-27
+
+A consolidation release that rolls up the port-UX cleanup (v3.1), the cross-project Hub view (v3.2), and a focused round of CLI install-experience fixes.
+
+### Added — CLI install experience
+
+- **`way_marks` is now a valid binary.** The package is `@way_marks/cli` but the canonical binary is `waymark`; the install used to leave only the `waymark` name on PATH, so `way_marks -v` returned `command not found`. Both names now work; everything in the docs continues to use `waymark`.
+- **`-v` / `--version` / `version`** — prints the installed `@way_marks/cli` version and exits 0. (Previously fell through to the help banner with exit 0, indistinguishable from a broken install.)
+- **`-h` / `--help` / no-args** — prints a richer help banner that includes the version, mentions both binary names, and documents the `--port` precedence (flag > config > auto).
+- **Unknown commands** now write `Unknown command: X / Run "waymark --help" for usage.` to stderr and exit 1 instead of silently dumping help and returning success.
+- **Post-install banner** — global installs print a short "✓ @way_marks/cli@X.Y.Z installed. Run: waymark init / start / --help" notice. Surfaces reliably with `npm install -g --foreground-scripts @way_marks/cli`; otherwise the bare `waymark` invocation prints the same info on first run.
+
+### Added — Hub view (originally v3.2)
+
+A central command center for every Waymark instance on your machine. From any project's dashboard, see every registered project (running / paused / stopped), pause / resume / stop a peer, and garbage-collect old entries — without leaving the dashboard you're already in. New endpoints `POST /api/hub/projects/:id/{pause,resume,stop}` and `POST /api/hub/gc`. Cross-project requests use a same-machine `localhost:NNNN` CORS allowlist.
+
+### Changed — Port UX (originally v3.1)
+
+- **Default port range moved from `3001-4000` to `47000-47999`** to avoid collisions with mainstream dev-server defaults (Next.js, Rails, Strapi, etc.). Existing projects keep their port until next stop+start; on next start they reallocate from the new range with a one-line migration notice.
+- **Per-project port pin** via `"port": 47100` at the top of `waymark.config.json`.
+- **Runtime override** via `waymark start --port 47200`. Conflicts now error loudly instead of silently reassigning.
+
+### Fixed
+
+- **Three-way port disagreement** between `init`'s banner, `start`'s allocation, and the dashboard footer's hardcoded `:3001`. All three now read from a single source of truth.
+- **CLAUDE.md** no longer hardcodes a port — it now points users at `npx @way_marks/cli status` for the live URL.
+- **`/api/project`** payload now includes `projectRoot` so `Settings → Projects` shows the path.
+- **Silent project-id collision** when two repos share a `kebabCase(basename)` is now a loud error that names both paths and never leaves orphan processes.
 
 ---
 

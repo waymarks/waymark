@@ -1,6 +1,6 @@
 {
   "name": "@way_marks/cli",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Control what AI agents can do in your codebase",
   "author": "Waymark <hello@waymarks.dev>",
   "license": "MIT",
@@ -22,15 +22,18 @@
     "agent-control"
   ],
   "bin": {
-    "waymark": "./dist/index.js"
+    "waymark": "./dist/index.js",
+    "way_marks": "./dist/index.js"
   },
   "files": [
-    "dist/**"
+    "dist/**",
+    "scripts/postinstall.js"
   ],
   "scripts": {
     "build": "tsc",
     "test": "jest",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "postinstall": "node scripts/postinstall.js"
   },
   "jest": {
     "preset": "ts-jest",
@@ -40,7 +43,7 @@
     ]
   },
   "dependencies": {
-    "@way_marks/server": "4.0.0"
+    "@way_marks/server": "4.0.1"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
