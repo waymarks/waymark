@@ -94,6 +94,30 @@ export const api = {
 
   getRemediationBlocks: () => request<RemediationBlocksResponse>('/api/remediation/blocks'),
 
+  // Hub — cross-project ops served by whichever Waymark dashboard the user has open.
+  hubPause: (id: string) =>
+    request<{ success: boolean }>(`/api/hub/projects/${encodeURIComponent(id)}/pause`, { method: 'POST' }),
+  hubResume: (id: string) =>
+    request<{ success: boolean }>(`/api/hub/projects/${encodeURIComponent(id)}/resume`, { method: 'POST' }),
+  hubStop: (id: string) =>
+    request<{ success: boolean; killed: { api: boolean; mcp: boolean }; message?: string }>(
+      `/api/hub/projects/${encodeURIComponent(id)}/stop`,
+      { method: 'POST' },
+    ),
+  hubGc: () => request<{ success: boolean; removed: number }>('/api/hub/gc', { method: 'POST' }),
+
+  // Probe a peer Waymark instance on its own port. CORS allowance lives on the
+  // peer's server; failure is silent so dead peers just show as "—".
+  getPeerStats: async (port: number, signal?: AbortSignal): Promise<SummaryStats | null> => {
+    try {
+      const res = await fetch(`http://localhost:${port}/api/stats`, { signal });
+      if (!res.ok) return null;
+      return (await res.json()) as SummaryStats;
+    } catch {
+      return null;
+    }
+  },
+
   approveAction: (id: string) =>
     request<{ success: boolean }>(`/api/actions/${encodeURIComponent(id)}/approve`, { method: 'POST' }),
   rejectAction: (id: string, reason: string) =>

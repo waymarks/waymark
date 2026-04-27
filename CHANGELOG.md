@@ -1,7 +1,65 @@
-## [3.0.0] — 2026-04-25
+## [4.0.0] — 2026-04-27
 
 ### Added
 - (Add changes here)
+
+### Changed
+- (Add changes here)
+
+### Fixed
+- (Add changes here)
+
+---
+
+## [3.2.0] — 2026-04-27
+
+### Added
+
+**Hub view — central command center for every Waymark instance on your machine.**
+
+Once you have more than one Waymark project running, a new `Hub` entry appears in the sidebar. From any dashboard:
+
+- See every registered project (running, paused, stopped) with live action and pending counts probed in real time.
+- **Pause / Resume** any peer's status flag, **Stop** any running peer (sends SIGTERM, releases the port), without leaving the dashboard you're already in.
+- "**Clean up stopped**" garbage-collects registry entries for projects that have been stopped for more than 7 days.
+- Your current dashboard is marked with a `this dashboard` chip and can't accidentally stop itself.
+
+Cross-project requests use a same-machine peer CORS allowlist (`http://localhost:NNNN` only — never opens to remote origins). New endpoints: `POST /api/hub/projects/:id/{pause,resume,stop}` and `POST /api/hub/gc`.
+
+This is a "no new daemon" Hub: every project's existing dashboard becomes a hub when it sees siblings. A future round may consolidate to a single multiplexed daemon — for now, this gives ~80 % of the central-command-center value with none of the migration complexity.
+
+---
+
+## [3.1.0] — 2026-04-26
+
+### Added
+
+**Per-project port pin and `--port` flag.** Stop fighting Next.js / Rails / Strapi for port 3000 territory. Set a stable port for a project once:
+
+```json
+// waymark.config.json
+{ "port": 47100, "policies": { ... } }
+```
+
+Or override at runtime: `waymark start --port 47200`. Conflicts now error loudly with `"Port X is already in use → Run npx @way_marks/cli list to see other Waymark projects"` instead of silently reassigning.
+
+### Changed
+
+**Default port range moved from `3001–4000` to `47000–47999`.** The legacy range collided with mainstream dev-server defaults; the new range is in IANA "user ports" with no popular reservations. Existing projects stay on their assigned port until next stop+start, at which point they reallocate from the new range with a one-line migration notice that points to the new pin if you want bookmark stability.
+
+### Fixed
+
+- **Three-way port disagreement:** `init`'s banner advertised `:3001`, `start` allocated whatever was free, and the dashboard footer hardcoded `:3001`. Now: `init` doesn't mention a port (it can't know yet), `start` prints the real one, and the footer reads the live port from `/api/project` — single source of truth.
+- **CLAUDE.md no longer hardcodes a port** — the dashboard URL changes per stop/start, so we now point at `npx @way_marks/cli status` for the live URL.
+- **`/api/project`** payload includes `projectRoot` so `Settings → Projects` shows the path.
+- **Silent project-id collision** when two repos share a `kebabCase(basename)` is now a loud error that names both paths and never leaves orphan processes.
+
+---
+
+## [3.0.0] — 2026-04-25
+
+### Added
+- See public v3.0.0 release notes (dashboard redesign).
 
 ### Changed
 - (Add changes here)

@@ -95,6 +95,7 @@ export interface ApiError {
 
 export interface PolicyConfig {
   version?: string;
+  port?: number;
   policies?: {
     allowedPaths?: string[];
     blockedPaths?: string[];
@@ -118,9 +119,9 @@ export interface HubProject {
 }
 
 export interface ProjectInfo {
-  projectName: string;
+  projectName: string | null;
   port: number;
-  projectRoot?: string;
+  projectRoot: string;
 }
 
 export interface TeamMember {

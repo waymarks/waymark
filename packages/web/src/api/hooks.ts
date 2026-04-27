@@ -209,6 +209,67 @@ export function useRemediationBlocks() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Hub — cross-project view
+// ---------------------------------------------------------------------------
+
+export function useHubPeerStats(port: number, enabled: boolean = true) {
+  return useQuery({
+    queryKey: ['hub', 'peer-stats', port],
+    queryFn: ({ signal }) => api.getPeerStats(port, signal),
+    enabled,
+    refetchInterval: 5_000,
+    staleTime: 4_000,
+    retry: false,
+  });
+}
+
+export function useHubPause() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (id: string) => api.hubPause(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['hub'] }); toast.push({ tone: 'ok', message: 'Project paused.' }); },
+    onError: (e: Error) => toast.push({ tone: 'err', message: e.message }),
+  });
+}
+
+export function useHubResume() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (id: string) => api.hubResume(id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['hub'] }); toast.push({ tone: 'ok', message: 'Project resumed.' }); },
+    onError: (e: Error) => toast.push({ tone: 'err', message: e.message }),
+  });
+}
+
+export function useHubStop() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (id: string) => api.hubStop(id),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['hub'] });
+      toast.push({ tone: 'ok', message: res.message ?? 'Project stopped.' });
+    },
+    onError: (e: Error) => toast.push({ tone: 'err', message: e.message }),
+  });
+}
+
+export function useHubGc() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: () => api.hubGc(),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['hub'] });
+      toast.push({ tone: 'ok', message: `Garbage collected ${res.removed} stale entr${res.removed === 1 ? 'y' : 'ies'}.` });
+    },
+    onError: (e: Error) => toast.push({ tone: 'err', message: e.message }),
+  });
+}
+
 export function useDecideEscalation(targetId: string) {
   const qc = useQueryClient();
   const toast = useToast();

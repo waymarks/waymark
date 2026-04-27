@@ -3,7 +3,14 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { Icon, type IconName } from './Icon';
 import { CommandPalette } from './CommandPalette';
 import { useUI, ACCENT_SWATCHES } from '@/store/ui';
-import { useActions, usePendingApprovals, usePendingEscalations, useSessions } from '@/api/hooks';
+import {
+  useActions,
+  useHubProjects,
+  usePendingApprovals,
+  usePendingEscalations,
+  useProject,
+  useSessions,
+} from '@/api/hooks';
 import { cn } from '@/lib/format';
 
 interface NavEntry { id: string; label: string; icon: IconName; count?: number; attn?: boolean }
@@ -14,6 +21,8 @@ export function AppShell({ children, topbar }: { children: ReactNode; topbar?: R
   const { data: sessions = [] } = useSessions();
   const { data: pendingApprovals = [] } = usePendingApprovals();
   const { data: pendingEscalations = [] } = usePendingEscalations();
+  const { data: project } = useProject();
+  const { data: hubProjects = {} } = useHubProjects();
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(() => {
@@ -40,13 +49,24 @@ export function AppShell({ children, topbar }: { children: ReactNode; topbar?: R
   const approvalAttn = approvalQueue > 0 || pendingActions > 0;
   const approvalCount = approvalQueue + pendingActions;
 
-  const primaryNav: NavEntry[] = useMemo(() => [
-    { id: '/',          label: 'Actions',   icon: 'actions',   count: actions.length },
-    { id: '/sessions',  label: 'Sessions',  icon: 'sessions',  count: sessions.length },
-    { id: '/approvals', label: 'Approvals', icon: 'approvals', count: approvalCount, attn: approvalAttn },
-    { id: '/policy',    label: 'Policy',    icon: 'policy' },
-    { id: '/stats',     label: 'Stats',     icon: 'stats' },
-  ], [actions.length, sessions.length, approvalCount, approvalAttn]);
+  // The Hub view is only useful when there's something to compare to. Show it
+  // once a second project shows up in ~/.waymark/registry.json.
+  const peerCount = Object.keys(hubProjects).length;
+  const showHub = peerCount > 1;
+
+  const primaryNav: NavEntry[] = useMemo(() => {
+    const base: NavEntry[] = [
+      { id: '/',          label: 'Actions',   icon: 'actions',   count: actions.length },
+      { id: '/sessions',  label: 'Sessions',  icon: 'sessions',  count: sessions.length },
+      { id: '/approvals', label: 'Approvals', icon: 'approvals', count: approvalCount, attn: approvalAttn },
+      { id: '/policy',    label: 'Policy',    icon: 'policy' },
+      { id: '/stats',     label: 'Stats',     icon: 'stats' },
+    ];
+    if (showHub) {
+      base.push({ id: '/hub', label: 'Hub', icon: 'folder', count: peerCount });
+    }
+    return base;
+  }, [actions.length, sessions.length, approvalCount, approvalAttn, showHub, peerCount]);
 
   return (
     <div className="app">
@@ -92,7 +112,9 @@ export function AppShell({ children, topbar }: { children: ReactNode; topbar?: R
           <div className="server-row">
             <span className={cn('status-dot', isError && 'off')} aria-hidden />
             <span>{isError ? 'API unreachable' : 'MCP server live'}</span>
-            <span className="server-port">:3001</span>
+            <span className="server-port" title={project?.projectRoot ?? undefined}>
+              {project?.port ? `:${project.port}` : '—'}
+            </span>
           </div>
         </div>
       </aside>

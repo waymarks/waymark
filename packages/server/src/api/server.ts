@@ -22,6 +22,51 @@ function getRegistryProjects() {
   }
 }
 
+interface RegistryEntry {
+  id: string;
+  projectRoot: string;
+  projectName: string;
+  port: number;
+  mcp_pid?: number;
+  api_pid?: number;
+  status: 'running' | 'paused' | 'stopped';
+  startedAt: string;
+  stoppedAt?: string;
+  pausedAt?: string;
+  hostname?: string;
+  user?: string;
+}
+
+function readRegistry(): { projects: Record<string, RegistryEntry>; releasedPorts?: number[]; lastUpdated?: string } {
+  if (!fs.existsSync(registryPath)) return { projects: {}, releasedPorts: [] };
+  try {
+    const r = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+    return { projects: r.projects || {}, releasedPorts: r.releasedPorts || [], lastUpdated: r.lastUpdated };
+  } catch {
+    return { projects: {}, releasedPorts: [] };
+  }
+}
+
+function writeRegistry(reg: { projects: Record<string, RegistryEntry>; releasedPorts?: number[]; lastUpdated?: string }): void {
+  reg.lastUpdated = new Date().toISOString();
+  fs.writeFileSync(registryPath, JSON.stringify({ version: 1, ...reg }, null, 2) + '\n');
+}
+
+function mutateRegistryEntry(id: string, mutator: (e: RegistryEntry) => void): RegistryEntry | null {
+  const reg = readRegistry();
+  const entry = reg.projects[id];
+  if (!entry) return null;
+  mutator(entry);
+  reg.projects[id] = entry;
+  writeRegistry(reg);
+  return entry;
+}
+
+function tryKill(pid: number | undefined): boolean {
+  if (!pid) return false;
+  try { process.kill(pid, 'SIGTERM'); return true; } catch { return false; }
+}
+
 // Phase 4: Garbage collection for registry
 function garbageCollectRegistryFile(): number {
   try {
@@ -60,10 +105,27 @@ function garbageCollectRegistryFile(): number {
 }
 
 const app = express();
-const PORT = parseInt(process.env.WAYMARK_PORT || '3001', 10);
+// Fallback only — `waymark start` always passes WAYMARK_PORT explicitly.
+// 47000 is the new default range (47000-47999); 3001 was the legacy default.
+const PORT = parseInt(process.env.WAYMARK_PORT || '47000', 10);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Same-machine peer CORS for the Hub view: another Waymark dashboard on a
+// different localhost port may probe this server's /api/* (e.g. /api/stats,
+// /api/hub/*). Allow it without opening up arbitrary remote origins.
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (typeof origin === 'string' && /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+  }
+  next();
+});
 
 // Serve UI — path works for both ts-node (src/api/) and compiled (dist/api/).
 const UI_DIR = path.resolve(__dirname, '../../src/ui-dist');
@@ -439,19 +501,26 @@ app.get('/api/config', (req, res) => {
   }
 });
 
-// GET /api/project — returns project metadata from .waymark/config.json
-app.get('/api/project', (req, res) => {
+// GET /api/project — returns live project metadata for the running server.
+// Source of truth: .waymark/config.json (written by `waymark start`).
+// Falls back to env-only state when running stand-alone (no .waymark/ yet).
+app.get('/api/project', (_req, res) => {
   try {
-    const configPath = path.join(
-      process.env.WAYMARK_PROJECT_ROOT || process.cwd(),
-      '.waymark',
-      'config.json'
-    );
+    const projectRoot = process.env.WAYMARK_PROJECT_ROOT || process.cwd();
+    const configPath = path.join(projectRoot, '.waymark', 'config.json');
     if (!fs.existsSync(configPath)) {
-      return res.json({ projectName: null, port: PORT });
+      return res.json({ projectName: null, port: PORT, projectRoot });
     }
-    const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8')) as { projectName?: string; port?: number };
-    res.json({ projectName: cfg.projectName || null, port: cfg.port || PORT });
+    const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8')) as {
+      projectName?: string;
+      port?: number;
+      projectRoot?: string;
+    };
+    res.json({
+      projectName: cfg.projectName || null,
+      port: cfg.port || PORT,
+      projectRoot: cfg.projectRoot || projectRoot,
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -469,6 +538,87 @@ app.get('/api/hub/projects', (req, res) => {
 
 // Phase 4: POST /api/registry/cleanup — garbage collect stale entries
 app.post('/api/registry/cleanup', (req, res) => {
+  try {
+    const removed = garbageCollectRegistryFile();
+    res.json({ success: true, removed, message: `Garbage collected ${removed} stale entries` });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================================
+// Hub: cross-project mutations driven from any peer's dashboard.
+// All write to ~/.waymark/registry.json the same way the CLI does.
+// ============================================================================
+
+// POST /api/hub/projects/:id/pause — flip status to paused (port retained)
+app.post('/api/hub/projects/:id/pause', (req, res) => {
+  try {
+    const { id } = req.params;
+    const updated = mutateRegistryEntry(id, (e) => {
+      e.status = 'paused';
+      e.pausedAt = new Date().toISOString();
+    });
+    if (!updated) return res.status(404).json({ error: `Project not found: ${id}` });
+    res.json({ success: true, project: updated });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/hub/projects/:id/resume — flip status back to running
+app.post('/api/hub/projects/:id/resume', (req, res) => {
+  try {
+    const { id } = req.params;
+    const updated = mutateRegistryEntry(id, (e) => {
+      e.status = 'running';
+      delete e.pausedAt;
+    });
+    if (!updated) return res.status(404).json({ error: `Project not found: ${id}` });
+    res.json({ success: true, project: updated });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/hub/projects/:id/stop — SIGTERM the peer's mcp+api, mark stopped,
+// release the port for reuse. Mirrors `waymark stop` behaviour without needing
+// the user to cd into the other project.
+app.post('/api/hub/projects/:id/stop', (req, res) => {
+  try {
+    const { id } = req.params;
+    const reg = readRegistry();
+    const entry = reg.projects[id];
+    if (!entry) return res.status(404).json({ error: `Project not found: ${id}` });
+
+    const killedApi = tryKill(entry.api_pid);
+    const killedMcp = tryKill(entry.mcp_pid);
+
+    entry.status = 'stopped';
+    entry.stoppedAt = new Date().toISOString();
+    reg.projects[id] = entry;
+
+    // Release port for reuse (mirrors registry.releasePort behaviour).
+    if (entry.port && Array.isArray(reg.releasedPorts)) {
+      reg.releasedPorts.push(entry.port);
+    } else {
+      reg.releasedPorts = [entry.port];
+    }
+    writeRegistry(reg);
+
+    res.json({
+      success: true,
+      project: entry,
+      killed: { api: killedApi, mcp: killedMcp },
+      message: killedApi || killedMcp ? `Stopped ${id}.` : `${id} was not running (registry cleaned).`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/hub/gc — alias of /api/registry/cleanup; convenient from the Hub UI.
+app.post('/api/hub/gc', (_req, res) => {
   try {
     const removed = garbageCollectRegistryFile();
     res.json({ success: true, removed, message: `Garbage collected ${removed} stale entries` });

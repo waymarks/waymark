@@ -7,6 +7,7 @@ import { SessionsView } from '@/features/sessions/SessionsView';
 import { ApprovalsView } from '@/features/approvals/ApprovalsView';
 import { PolicyView } from '@/features/policy/PolicyView';
 import { StatsView } from '@/features/stats/StatsView';
+import { HubView } from '@/features/hub/HubView';
 import { SettingsShell } from '@/features/settings/SettingsShell';
 
 export function App() {
@@ -19,6 +20,7 @@ export function App() {
         <Route path="/approvals" element={<ApprovalsView />} />
         <Route path="/policy" element={<PolicyView />} />
         <Route path="/stats" element={<StatsView />} />
+        <Route path="/hub" element={<HubView />} />
         <Route path="/settings/*" element={<SettingsShell />} />
       </Routes>
     </AppShell>

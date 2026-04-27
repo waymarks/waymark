@@ -1,4 +1,21 @@
-const BASE = 'http://localhost:3001';
+import * as fs from 'fs';
+import * as path from 'path';
+
+/**
+ * Resolve the dashboard URL for the current project by reading the live port
+ * out of `<cwd>/.waymark/config.json` (written by `waymark start`).
+ * Returns null when the project hasn't been started yet.
+ */
+function resolveBaseUrl(): string | null {
+  const configPath = path.join(process.cwd(), '.waymark', 'config.json');
+  if (!fs.existsSync(configPath)) return null;
+  try {
+    const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8')) as { port?: number };
+    return cfg.port ? `http://localhost:${cfg.port}` : null;
+  } catch {
+    return null;
+  }
+}
 
 function parseIso(iso: string): Date {
   const normalized = iso.includes('T') ? iso : iso.replace(' ', 'T');
@@ -33,13 +50,19 @@ export async function run(): Promise<void> {
   const pendingOnly = args.includes('--pending');
   const blockedOnly = args.includes('--blocked');
 
+  const base = resolveBaseUrl();
+  if (!base) {
+    console.log('Waymark is not running for this project. Start with: npx @way_marks/cli start');
+    return;
+  }
+
   let rows: any[];
   try {
-    const res = await fetch(`${BASE}/api/actions`);
+    const res = await fetch(`${base}/api/actions`);
     if (!res.ok) throw new Error('Bad response');
     rows = await res.json() as any[];
   } catch {
-    console.log('Waymark is not running. Start with: npx @way_marks/cli start');
+    console.log(`Waymark is not reachable at ${base}. Start with: npx @way_marks/cli start`);
     return;
   }
 

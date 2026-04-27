@@ -22,7 +22,7 @@ export interface ProjectEntry {
   projectName: string;             // human-readable name
 
   // Process management
-  port: number;                    // allocated port (3001-4000)
+  port: number;                    // allocated port (47000-47999, legacy: 3001-4000)
   mcp_pid?: number;               // MCP process ID (optional, for cleanup)
   api_pid?: number;               // API process ID (optional, for cleanup)
 
@@ -86,10 +86,50 @@ export function getRegistry(): Registry {
 }
 
 /**
+ * Error thrown when two projects with the same kebab-cased basename are running
+ * at different paths. Caller (start.ts) catches this and emits a user-facing
+ * message instead of silently overwriting the registry.
+ */
+export class ProjectIdCollisionError extends Error {
+  readonly id: string;
+  readonly existingRoot: string;
+  readonly newRoot: string;
+  constructor(id: string, existingRoot: string, newRoot: string) {
+    super(
+      `Another running Waymark project named "${id}" is registered at ${existingRoot}. ` +
+      `This start request is at ${newRoot}. ` +
+      `Stop the other project first ("npx @way_marks/cli stop" in ${existingRoot}), ` +
+      `or rename one of the directories so the project ids differ.`,
+    );
+    this.name = 'ProjectIdCollisionError';
+    this.id = id;
+    this.existingRoot = existingRoot;
+    this.newRoot = newRoot;
+  }
+}
+
+/**
  * Register a project (called on `waymark start`)
+ *
+ * Surfaces a `ProjectIdCollisionError` when an entry with the same `id`
+ * already exists at a *different* path AND its process is still alive.
+ * Same-path re-registration (the resume case) overwrites silently.
+ * Stale entries (process gone) are also overwritten — caller will start fresh.
  */
 export function registerProject(entry: ProjectEntry): void {
   const registry = ensureRegistry();
+  const existing = registry.projects[entry.id];
+
+  if (existing && path.resolve(existing.projectRoot) !== path.resolve(entry.projectRoot)) {
+    const aliveByPid = existing.mcp_pid != null && (() => {
+      try { process.kill(existing.mcp_pid!, 0); return true; } catch { return false; }
+    })();
+    const aliveByStatus = existing.status === 'running';
+    if (aliveByPid || aliveByStatus) {
+      throw new ProjectIdCollisionError(entry.id, existing.projectRoot, entry.projectRoot);
+    }
+    // Stale entry at a different path — fall through and overwrite.
+  }
 
   entry.startedAt = entry.startedAt || new Date().toISOString();
   entry.status = entry.status || 'running';
@@ -195,10 +235,27 @@ export function listProjects(filter?: 'running' | 'paused' | 'stopped'): Project
 }
 
 /**
- * Find available port in the 3001-4000 range
- * (Phase 2 future: will be replaced by central port broker)
+ * Default port range for new Waymark projects.
+ *
+ * 47000-47999 is in the IANA "user ports" range and avoids collisions with the
+ * most common dev-server defaults (3000 Next.js, 3001 fallback, 5173 Vite,
+ * 4200 Angular, 8080 generic, 1337 Strapi, etc.). Existing projects on the
+ * legacy 3001-4000 range keep working until they're stopped — see start.ts
+ * for the migration notice.
  */
-export function findAvailablePort(preferred: number = 3001): number {
+export const PORT_RANGE_START = 47000;
+export const PORT_RANGE_END = 47999;
+export const LEGACY_PORT_BOUNDARY = 47000; // anything below this is "legacy"
+
+/**
+ * Find an available port for a new Waymark instance.
+ *
+ * Order:
+ *   1. Reuse a freed port from the releasedPorts queue (when not in use).
+ *   2. Use `preferred` if free.
+ *   3. Scan 47000..47999 for the first free port.
+ */
+export function findAvailablePort(preferred: number = PORT_RANGE_START): number {
   const registry = ensureRegistry();
   const usedPorts = new Set(
     Object.values(registry.projects)
@@ -206,14 +263,24 @@ export function findAvailablePort(preferred: number = 3001): number {
       .map(p => p.port)
   );
 
-  // Phase 4: Check if we have a released port to reuse first
+  // Reuse a released port if one is available — but skip any legacy ports
+  // (< LEGACY_PORT_BOUNDARY) so the v3.1 migration cleanly transitions every
+  // project off the old range over time. Legacy ports are simply discarded.
   if (registry.releasedPorts && registry.releasedPorts.length > 0) {
-    const releasedPort = registry.releasedPorts.shift();
-    if (releasedPort && !usedPorts.has(releasedPort)) {
-      // Save updated registry with shifted port
+    let mutated = false;
+    while (registry.releasedPorts.length > 0) {
+      const candidate = registry.releasedPorts.shift();
+      mutated = true;
+      if (candidate == null) continue;
+      if (candidate < LEGACY_PORT_BOUNDARY) continue; // drop legacy
+      if (usedPorts.has(candidate)) continue;
       registry.lastUpdated = new Date().toISOString();
       fs.writeFileSync(REGISTRY_PATH, JSON.stringify(registry, null, 2) + '\n');
-      return releasedPort;
+      return candidate;
+    }
+    if (mutated) {
+      registry.lastUpdated = new Date().toISOString();
+      fs.writeFileSync(REGISTRY_PATH, JSON.stringify(registry, null, 2) + '\n');
     }
   }
 
@@ -222,14 +289,14 @@ export function findAvailablePort(preferred: number = 3001): number {
     return preferred;
   }
 
-  // Find next available
-  for (let port = 3001; port <= 4000; port++) {
+  // Find next available in the modern range
+  for (let port = PORT_RANGE_START; port <= PORT_RANGE_END; port++) {
     if (!usedPorts.has(port)) {
       return port;
     }
   }
 
-  throw new Error('No available ports in range 3001-4000');
+  throw new Error(`No available ports in range ${PORT_RANGE_START}-${PORT_RANGE_END}. Stop other Waymark projects first.`);
 }
 
 /**

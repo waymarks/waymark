@@ -13,6 +13,13 @@ function getConfigPath(): string {
 
 export interface WaymarkConfig {
   version: string;
+  /**
+   * Optional dashboard/MCP port pin. When set, `waymark start` binds exactly
+   * this port instead of auto-allocating from the 47000-47999 range. If the
+   * port is already in use, start aborts with a readable error rather than
+   * silently reassigning. Override at runtime with `waymark start --port <n>`.
+   */
+  port?: number;
   policies: {
     allowedPaths: string[];
     blockedPaths: string[];
