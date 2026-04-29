@@ -1,4 +1,4 @@
-## [4.0.2] — 2026-04-27
+## [4.2.0] — 2026-04-29
 
 ### Added
 - (Add changes here)
@@ -8,6 +8,57 @@
 
 ### Fixed
 - (Add changes here)
+
+---
+
+## [4.1.0] — 2026-04-27
+
+### Added — Agent monitor
+
+A btop-inspired live view of every AI coding agent running on this machine.
+
+- **New `/agents` dashboard page** — three tabs (Sessions / Rate Limits / Ports), agent + status filters, expandable session detail panel.
+  - Session cards show: status badge, agent name, PID, age, project, current task, context-window progress bar, output tokens, turn count, memory, git diff stats, model.
+  - Detects Claude Code, Codex CLI, and **GitHub Copilot CLI** sessions.
+- **New `waymark agents` command** — fixed-column table; flags `--agent`, `--active`, `--json`, `--limit`.
+- **New REST API** under `/api/agent-monitor/*` (sessions, rate-limits, ports, snapshot endpoints).
+- **New MCP tools** — `list_agent_sessions`, `get_rate_limits`, `get_agent_ports` (read-only; intentionally bypass the action log).
+- Sidebar **Agents** entry with live active-session count badge.
+
+### Added — GitHub Copilot CLI as a first-class platform
+
+Removed the EXPERIMENTAL label. Setup is now identical to Claude.
+
+- `waymark init` auto-merges Waymark into `~/.copilot/mcp-config.json` (Copilot CLI's MCP config) using the required `"type": "local"` format.
+- `waymark init` generates `COPILOT.md` (analog of `CLAUDE.md`) with Waymark tool-routing instructions for the Copilot agent.
+- The agent monitor reads rich Copilot session data from `~/.copilot/session-state/<uuid>/` — `workspace.yaml` + incrementally-tailed `events.jsonl` — and surfaces model, token usage, turn count, current task, and tool-call list per session.
+
+### Verified
+
+End-to-end via Playwright against a sandbox project: dashboard load, all filter tabs, approve / reject / rollback workflow, agent monitor with both Claude and Copilot CLI sessions visible with rich metadata, sessions / stats / policy pages, the `waymark agents` CLI command in all flag combinations, all three MCP tools (with and without API up — graceful empty snapshot when offline), SIGTERM clean shutdown in 66 ms. 221 / 221 vitest passing on the server suite (includes 7 new fixture-based copilot collector tests + approve-write regression + raw-snapshot wire-shape regression).
+
+### Hardened before tag
+
+The first review pass surfaced 10 polish items. Seven landed in this same release rather than slipping to v4.1.1:
+
+- **Single collector** — MCP no longer runs its own `MultiCollector`; it fetches snapshots from the API on demand (`fetchSnapshotFromApi()`).
+- **Clean shutdown** — both agent-monitor `setInterval` timers `.unref()`d.
+- **Server-side normalization** — `multi-collector.tick()` now returns `0` / `[]` (never `null`) for every session field, clamps `status` to the canonical `SessionStatus` union, and runs `redactSecrets()` over free-text fields at the boundary.
+- **JSONL hardening** — every `JSON.parse(line)` in the collectors is wrapped in `try/catch`; new fixture-based `copilot.test.ts` locks the `ev.data` nesting contract.
+- **Approve-write fix** — `approvals/handler.ts` resolves relative paths against `WAYMARK_PROJECT_ROOT`, matching the policy engine; regression test added.
+- **Status taxonomy aligned** — front-end status sets mirror the canonical 5-value `SessionStatus` union.
+- **Hygiene** — dead `feature-flag.js` deleted; `packages/server/src/ui-dist/assets/` `.gitignore`d.
+
+Two additional bugs were uncovered by the end-to-end smoke and also fixed:
+
+- **CLI `@way_marks/server` dep was pinned at `4.0.2`** — after the 4.1.0 workspace bump, npm pulled a stale published 4.0.2 into `cli/node_modules` instead of linking the local workspace. Bumped to `^4.1.0` so npm hoists the workspace symlink.
+- **`/api/agent-monitor/snapshot` was returning the slim summary shape** (`tokens.input`, `subagentCount`) when both the MCP and the web's TS types expect the raw shape (`totalInputTokens`, `subagents` array). The MCP handlers crashed on `s.subagents.length` when the API was up; the web silently relied on `?? 0` guards. Switched to raw shape; `/sessions` keeps the slim summary for the CLI table view. Added `/snapshot` route regression test.
+
+Remaining deferred items: full secret-redaction audit inside the Claude collector path (boundary normalization is in place); fixture tests for `claude.ts` / `codex.ts` (copilot has one); bundle still 19 KB over the 300 KB soft budget — accepted, on par with v3.2.
+
+### Notes
+
+- The agent monitor uses `ps`, `lsof`, and `git status --porcelain` on a 2-second tick (slow scans every 10 s). All collection is local — nothing leaves the machine.
 
 ---
 

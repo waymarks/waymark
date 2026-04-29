@@ -26,8 +26,21 @@ import { v4 as uuidv4 } from 'uuid';
 import { insertAction, updateAction } from '../db/database';
 import { loadConfig, checkFileAction, checkBashAction } from '../policies/engine';
 import { notifyPendingAction } from '../notifications/slack';
+import {
+  AGENT_MONITOR_TOOL_DEFINITIONS,
+  fetchSnapshotFromApi,
+  handleAgentMonitorToolCall,
+} from './tools/agent-monitor';
 
 const SESSION_ID = uuidv4();
+
+// Agent monitor — fetch from the sibling API process on demand instead of
+// running a second MultiCollector here. WAYMARK_PORT is set by `waymark start`
+// when it spawns this MCP child; if absent we default to the v3.1+ default
+// range start. fetchSnapshotFromApi() returns an empty snapshot when the API
+// is unreachable, so the MCP tool calls degrade gracefully.
+const API_PORT = parseInt(process.env.WAYMARK_PORT || '47000', 10);
+const getAgentSnapshot = () => fetchSnapshotFromApi(API_PORT);
 
 // Build PATH that includes the current node binary's directory.
 // process.execPath works regardless of version manager (nvm, Homebrew, system, etc.)
@@ -92,6 +105,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['command'],
         },
       },
+      ...AGENT_MONITOR_TOOL_DEFINITIONS,
     ],
   };
 });
@@ -99,6 +113,16 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 // Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
+
+  // Agent monitor tools — read-only, no logging needed.
+  // Snapshot is fetched from the sibling API process; empty if API unreachable.
+  const monitorResult = await handleAgentMonitorToolCall(
+    name,
+    args as Record<string, unknown>,
+    getAgentSnapshot,
+  );
+  if (monitorResult) return monitorResult;
+
   const action_id = uuidv4();
   const input_payload = JSON.stringify(args);
 

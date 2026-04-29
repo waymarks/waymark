@@ -25,13 +25,25 @@ export async function approvePendingAction(
 
   if (action.tool_name === 'write_file') {
     const { path: filePath, content } = JSON.parse(action.input_payload) as { path: string; content: string };
-    const resolvedPath = path.resolve(filePath);
+
+    // Resolve against WAYMARK_PROJECT_ROOT, not process.cwd(). The policy engine
+    // (loadConfig in policies/engine.ts) uses the same env var; using cwd here
+    // would cause a relative target_path to resolve to a different absolute
+    // path than the one the policy was originally evaluated against — which
+    // would then re-trigger a policy block on approval.
+    const projectRoot = process.env.WAYMARK_PROJECT_ROOT || process.cwd();
+    const resolvedPath = path.isAbsolute(filePath)
+      ? path.resolve(filePath)
+      : path.resolve(projectRoot, filePath);
 
     // Re-check current policies — they may have changed since the action was queued
     const currentConfig = loadConfig();
     const recheck = checkFileAction(resolvedPath, 'write', currentConfig);
     if (recheck.decision === 'block') {
-      return { success: false, error: `Approval blocked: policy changed (${recheck.reason})` };
+      return {
+        success: false,
+        error: `Approval blocked: policy changed since action was recorded (${recheck.reason}). Resolved path: ${resolvedPath}`,
+      };
     }
 
     fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });

@@ -148,6 +148,45 @@ describe('approvePendingAction', () => {
     expect(result.error).toMatch(/policy changed/i);
   });
 
+  it('resolves relative target_path against WAYMARK_PROJECT_ROOT (not cwd) — regression', async () => {
+    // Without the fix, path.resolve('src/x.txt') used process.cwd(), which
+    // diverges from how loadConfig() resolves paths. A relative target stored
+    // in the action row ended up resolving to a different absolute path than
+    // the one the policy was originally evaluated against, causing the
+    // approve-write to spuriously trip the policy block.
+    const allowConfig = {
+      version: '1',
+      policies: {
+        allowedPaths: ['src/**'],          // relative globs anchored to project root
+        blockedPaths: [],
+        blockedCommands: [],
+        requireApproval: [],
+        maxBashOutputBytes: 10000,
+      },
+    };
+    fs.writeFileSync(path.join(tmpDir, 'waymark.config.json'), JSON.stringify(allowConfig));
+    fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });
+
+    const { approvePendingAction } = await import('./handler');
+    const { insertAction } = await import('../db/database');
+
+    insertAction({
+      action_id: 'write-relative',
+      session_id: 'sess-relative',
+      tool_name: 'write_file',
+      // Note: relative path. The mock DB stores this verbatim; the handler
+      // must resolve it against WAYMARK_PROJECT_ROOT.
+      input_payload: JSON.stringify({ path: 'src/x.txt', content: 'ok' }),
+      status: 'pending',
+      decision: 'pending',
+    });
+
+    const result = await approvePendingAction('write-relative');
+    expect(result.success).toBe(true);
+    // File should land under the project root, not the test runner's cwd.
+    expect(fs.existsSync(path.join(tmpDir, 'src', 'x.txt'))).toBe(true);
+  });
+
   it('returns error for unsupported tool type', async () => {
     const { approvePendingAction } = await import('./handler');
     const { insertAction } = await import('../db/database');

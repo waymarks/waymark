@@ -341,3 +341,50 @@ export function useRollbackAction() {
     onError: (err: Error) => toast.push({ tone: 'err', message: err.message }),
   });
 }
+
+// ─── Agent Monitor ────────────────────────────────────────────────────────────
+
+const AGENT_POLL_MS = 3_000;
+
+export function useAgentSessions(params?: { agent?: string; status?: string }) {
+  return useQuery({
+    queryKey: ['agent-sessions', params],
+    queryFn: () => api.getAgentSessions(params),
+    refetchInterval: AGENT_POLL_MS,
+    refetchIntervalInBackground: false,
+  });
+}
+
+export function useAgentSession(id: string | null | undefined) {
+  return useQuery({
+    queryKey: ['agent-session', id],
+    queryFn: () => api.getAgentSession(id!),
+    enabled: !!id,
+    refetchInterval: AGENT_POLL_MS,
+  });
+}
+
+export function useAgentRateLimits() {
+  return useQuery({
+    queryKey: ['agent-rate-limits'],
+    queryFn: api.getAgentRateLimits,
+    refetchInterval: AGENT_POLL_MS,
+  });
+}
+
+export function useAgentPorts() {
+  return useQuery({
+    queryKey: ['agent-ports'],
+    queryFn: api.getAgentPorts,
+    refetchInterval: AGENT_POLL_MS,
+  });
+}
+
+export function useAgentSnapshot() {
+  return useQuery({
+    queryKey: ['agent-snapshot'],
+    queryFn: api.getAgentSnapshot,
+    refetchInterval: AGENT_POLL_MS,
+    refetchIntervalInBackground: false,
+  });
+}

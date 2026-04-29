@@ -9,6 +9,7 @@ import { PolicyView } from '@/features/policy/PolicyView';
 import { StatsView } from '@/features/stats/StatsView';
 import { HubView } from '@/features/hub/HubView';
 import { SettingsShell } from '@/features/settings/SettingsShell';
+import { AgentMonitorView } from '@/features/agent-monitor/AgentMonitorView';
 
 export function App() {
   useEventStream();
@@ -21,6 +22,7 @@ export function App() {
         <Route path="/policy" element={<PolicyView />} />
         <Route path="/stats" element={<StatsView />} />
         <Route path="/hub" element={<HubView />} />
+        <Route path="/agents" element={<AgentMonitorView />} />
         <Route path="/settings/*" element={<SettingsShell />} />
       </Routes>
     </AppShell>

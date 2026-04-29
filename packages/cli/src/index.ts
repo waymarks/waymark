@@ -25,6 +25,7 @@ function printHelp(): void {
   console.log('  resume                Resume a paused project');
   console.log('  status                Show current Waymark status and pending count');
   console.log('  logs                  Show recent action log');
+  console.log('  agents                List running AI agent sessions');
   console.log('  list                  List all registered Waymark projects');
   console.log('  open                  Open a project dashboard or start it');
   console.log('');
@@ -72,6 +73,9 @@ switch (command) {
     break;
   case 'logs':
     require('./commands/logs').run();
+    break;
+  case 'agents':
+    require('./commands/agents').run();
     break;
   case 'list':
     require('./commands/list').run();

@@ -1,0 +1,13 @@
+{"type":"session.start","ts":"2026-04-27T14:28:09.407Z","data":{"sessionId":"aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee","cwd":"/tmp/fixture-project","branch":"main"}}
+{"type":"session.model_change","ts":"2026-04-27T14:28:10.000Z","data":{"newModel":"claude-sonnet-4-6"}}
+{"type":"user.message","ts":"2026-04-27T14:28:11.000Z","data":{"content":"Refactor the auth module"}}
+{"type":"assistant.turn_start","ts":"2026-04-27T14:28:12.000Z","data":{"turnId":"t1"}}
+{"type":"assistant.message","ts":"2026-04-27T14:28:13.000Z","data":{"messageId":"m1","outputTokens":250,"toolRequests":[]}}
+{"type":"tool.execution_start","ts":"2026-04-27T14:28:14.000Z","data":{"toolCallId":"tc1","toolName":"read_file","arguments":{"path":"src/auth.ts"}}}
+{"type":"tool.execution_complete","ts":"2026-04-27T14:28:15.000Z","data":{"toolCallId":"tc1","success":true,"result":"ok"}}
+{"type":"assistant.message","ts":"2026-04-27T14:28:16.000Z","data":{"messageId":"m2","outputTokens":420,"toolRequests":[]}}
+{"type":"assistant.turn_end","ts":"2026-04-27T14:28:17.000Z","data":{"turnId":"t1"}}
+{"type":"session.compaction_complete","ts":"2026-04-27T14:28:18.000Z","data":{"preCompactionTokens":48000}}
+{"type":"user.message","ts":"2026-04-27T14:28:19.000Z","data":{"content":"Now write tests for the changes you made — sk-ant-leaktest-1234567890 should be redacted"}}
+this is a malformed line that is not valid JSON {{
+{"type":"assistant.message","ts":"2026-04-27T14:28:21.000Z","data":{"messageId":"m3","outputTokens":180,"toolRequests":[]}}

@@ -27,6 +27,10 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 import type {
   ActionRow,
+  AgentSession,
+  AgentRateLimitsResponse,
+  AgentPortsResponse,
+  AgentSnapshot,
   ApprovalRequest,
   ApprovalRoute,
   EscalationRequest,
@@ -117,6 +121,17 @@ export const api = {
       return null;
     }
   },
+
+  // Agent monitor
+  getAgentSessions: (params?: { agent?: string; status?: string }) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString() : '';
+    return request<{ sessions: AgentSession[]; count: number }>(`/api/agent-monitor/sessions${qs ? '?' + qs : ''}`);
+  },
+  getAgentSession: (id: string) =>
+    request<{ session: AgentSession }>(`/api/agent-monitor/sessions/${encodeURIComponent(id)}`),
+  getAgentRateLimits: () => request<AgentRateLimitsResponse>('/api/agent-monitor/rate-limits'),
+  getAgentPorts: () => request<AgentPortsResponse>('/api/agent-monitor/ports'),
+  getAgentSnapshot: () => request<AgentSnapshot>('/api/agent-monitor/snapshot'),
 
   approveAction: (id: string) =>
     request<{ success: boolean }>(`/api/actions/${encodeURIComponent(id)}/approve`, { method: 'POST' }),

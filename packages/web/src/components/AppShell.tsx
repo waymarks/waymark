@@ -5,6 +5,7 @@ import { CommandPalette } from './CommandPalette';
 import { useUI, ACCENT_SWATCHES } from '@/store/ui';
 import {
   useActions,
+  useAgentSessions,
   useHubProjects,
   usePendingApprovals,
   usePendingEscalations,
@@ -23,6 +24,7 @@ export function AppShell({ children, topbar }: { children: ReactNode; topbar?: R
   const { data: pendingEscalations = [] } = usePendingEscalations();
   const { data: project } = useProject();
   const { data: hubProjects = {} } = useHubProjects();
+  const { data: agentData } = useAgentSessions({ status: 'active' });
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(() => {
@@ -48,6 +50,7 @@ export function AppShell({ children, topbar }: { children: ReactNode; topbar?: R
   const approvalQueue = pendingApprovals.length + pendingEscalations.length;
   const approvalAttn = approvalQueue > 0 || pendingActions > 0;
   const approvalCount = approvalQueue + pendingActions;
+  const activeAgentCount = agentData?.count ?? 0;
 
   // The Hub view is only useful when there's something to compare to. Show it
   // once a second project shows up in ~/.waymark/registry.json.
@@ -61,12 +64,13 @@ export function AppShell({ children, topbar }: { children: ReactNode; topbar?: R
       { id: '/approvals', label: 'Approvals', icon: 'approvals', count: approvalCount, attn: approvalAttn },
       { id: '/policy',    label: 'Policy',    icon: 'policy' },
       { id: '/stats',     label: 'Stats',     icon: 'stats' },
+      { id: '/agents',    label: 'Agents',    icon: 'agent',     count: activeAgentCount > 0 ? activeAgentCount : undefined },
     ];
     if (showHub) {
       base.push({ id: '/hub', label: 'Hub', icon: 'folder', count: peerCount });
     }
     return base;
-  }, [actions.length, sessions.length, approvalCount, approvalAttn, showHub, peerCount]);
+  }, [actions.length, sessions.length, approvalCount, approvalAttn, activeAgentCount, showHub, peerCount]);
 
   return (
     <div className="app">

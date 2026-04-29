@@ -176,3 +176,82 @@ export interface SummaryStats {
   topTools: Array<{ tool: string; count: number }>;
   topPaths: Array<{ path: string; count: number }>;
 }
+
+// ─── Agent Monitor types ─────────────────────────────────────────────────────
+
+export interface AgentSession {
+  agentCli: string;
+  pid: number;
+  sessionId: string;
+  cwd: string;
+  projectName: string;
+  startedAt: number;
+  status: string;
+  model: string;
+  effort: string;
+  contextPercent: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
+  totalCacheRead: number;
+  totalCacheCreate: number;
+  turnCount: number;
+  currentTasks: string[];
+  memMb: number;
+  version: string;
+  gitBranch: string;
+  gitAdded: number;
+  gitModified: number;
+  tokenHistory: number[];
+  contextHistory: number[];
+  compactionCount: number;
+  contextWindow: number;
+  subagents: AgentSession[];
+  memFileCount: number;
+  memLineCount: number;
+  children: Array<{ pid: number; command: string; memKb: number; port?: number }>;
+  initialPrompt: string;
+  firstAssistantText: string;
+  toolCalls: Array<{ name: string; arg: string; durationMs: number }>;
+  pendingSinceMs: number;
+  thinkingSinceMs: number;
+  fileAccesses: Array<{ path: string; operation: string; turnIndex: number }>;
+}
+
+export interface AgentRateLimitInfo {
+  source: string;
+  fiveHour: { usedPercent: number; resetsAtIso: string };
+  sevenDay?: { usedPercent: number; resetsAtIso: string };
+}
+
+export interface AgentRateLimitsResponse {
+  rateLimits: AgentRateLimitInfo[];
+  collectedAt: number;
+}
+
+export interface AgentPortEntry {
+  port: number;
+  pid: number;
+  command: string;
+  sessionId: string;
+  agentCli: string;
+}
+
+export interface OrphanPortEntry {
+  port: number;
+  pid: number;
+  command: string;
+  projectName: string;
+}
+
+export interface AgentPortsResponse {
+  agentPorts: AgentPortEntry[];
+  orphanPorts: OrphanPortEntry[];
+  collectedAt: number;
+}
+
+export interface AgentSnapshot {
+  sessions: AgentSession[];
+  rateLimits: AgentRateLimitInfo[];
+  orphanPorts: OrphanPortEntry[];
+  collectedAt: number;
+}

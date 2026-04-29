@@ -9,6 +9,8 @@ import { approvePendingAction, rejectPendingAction } from '../approvals/handler'
 import { determineRequiredApprovers, createApprovalRequestForSession, submitApprovalDecision, getApprovalStatus, canProceedWithRollback } from '../approval/manager';
 import { submitEscalationDecision as submitEscalationDecisionManager, getEscalationStatus, canProceedWithRollbackAfterEscalation, getEscalationHistoryForSession } from '../escalation/manager';
 import { attachSubscriber, emit } from './events';
+import { MultiCollector } from '../collectors/multi-collector';
+import { createAgentMonitorRouter } from './routes/agent-monitor';
 
 // Import registry for Phase 2 hub navigation
 const registryPath = path.join(process.env.HOME || process.env.USERPROFILE || '', '.waymark', 'registry.json');
@@ -139,6 +141,19 @@ if (UI_BUILT) {
     'Run `npm run build -w @way_marks/web` to build the dashboard.',
   );
 }
+
+// Agent monitor — MultiCollector on a 2 s timer (mirrors abtop polling interval).
+// .unref() so the timer doesn't keep the event loop alive on SIGTERM; the API
+// process should exit cleanly via the http server close.
+const agentCollector = new MultiCollector();
+let latestAgentSnapshot = agentCollector.tick();
+const agentCollectorTimer = setInterval(() => {
+  latestAgentSnapshot = agentCollector.tick();
+}, 2000);
+agentCollectorTimer.unref();
+
+// Mount agent-monitor REST API
+app.use('/api/agent-monitor', createAgentMonitorRouter(() => latestAgentSnapshot));
 
 // GET /api/events — Server-Sent Events stream for live UI updates
 app.get('/api/events', (req, res) => {
