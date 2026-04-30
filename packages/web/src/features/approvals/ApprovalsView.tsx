@@ -2,13 +2,16 @@ import { useMemo, useState } from 'react';
 import { Icon } from '@/components/Icon';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import {
+  useActions,
+  useApproveAction,
   useApproveRequest,
   useDecideEscalation,
   usePendingApprovals,
   usePendingEscalations,
+  useRejectAction,
   useRejectRequest,
 } from '@/api/hooks';
-import type { ApprovalRequest, EscalationRequest } from '@/api/types';
+import type { ActionRow, ApprovalRequest, EscalationRequest } from '@/api/types';
 import { cn, parseServerDate, timeAgo } from '@/lib/format';
 import { useUI } from '@/store/ui';
 
@@ -17,12 +20,17 @@ type Tab = 'pending' | 'escalated' | 'history';
 export function ApprovalsView() {
   const { data: pending = [], isLoading: loadPending, isError: errPending } = usePendingApprovals();
   const { data: escalated = [], isLoading: loadEsc, isError: errEsc } = usePendingEscalations();
+  const { data: allActions = [] } = useActions();
+
+  // Phase 1 policy-held actions: simple requireApproval items from action_log
+  const pendingActions = allActions.filter((a) => a.decision === 'pending' && a.status === 'pending');
 
   const [tab, setTab] = useState<Tab>('pending');
-  const totalLive = pending.length + escalated.length;
+  const totalPending = pending.length + pendingActions.length;
+  const totalLive = totalPending + escalated.length;
 
   // Auto-route to escalated tab when there are no approvals but there are escalations.
-  const effectiveTab: Tab = tab === 'pending' && pending.length === 0 && escalated.length > 0 ? 'escalated' : tab;
+  const effectiveTab: Tab = tab === 'pending' && totalPending === 0 && escalated.length > 0 ? 'escalated' : tab;
 
   return (
     <>
@@ -50,18 +58,21 @@ export function ApprovalsView() {
       )}
 
       <div className="pill-row" role="tablist" aria-label="Approval queues">
-        <TabPill id="pending" label="Pending" count={pending.length} current={effectiveTab} onClick={setTab} attn />
+        <TabPill id="pending" label="Pending" count={totalPending} current={effectiveTab} onClick={setTab} attn />
         <TabPill id="escalated" label="Escalated" count={escalated.length} current={effectiveTab} onClick={setTab} attn />
         <TabPill id="history" label="History" count={undefined} current={effectiveTab} onClick={setTab} />
       </div>
 
       {effectiveTab === 'pending' &&
-        (loadPending && pending.length === 0 ? (
+        (loadPending && totalPending === 0 ? (
           <QueueSkeleton />
-        ) : pending.length === 0 ? (
+        ) : totalPending === 0 ? (
           <Empty icon="check" title="Inbox zero." sub="No approvals awaiting decision." />
         ) : (
           <div className="queue">
+            {pendingActions.map((action) => (
+              <PendingActionCard key={action.action_id} action={action} />
+            ))}
             {pending.map((req) => (
               <ApprovalCard key={req.request_id} req={req} />
             ))}
@@ -155,6 +166,82 @@ function parseList(json: string | null | undefined): string[] {
   } catch {
     return [];
   }
+}
+
+// ── Phase 1: simple policy-held action card ─────────────────────────────────
+function PendingActionCard({ action }: { action: ActionRow }) {
+  const approve = useApproveAction();
+  const reject = useRejectAction();
+  const [modal, setModal] = useState<null | 'approve' | 'reject'>(null);
+
+  const label = action.target_path
+    ? action.target_path.split('/').slice(-2).join('/')
+    : action.tool_name;
+
+  return (
+    <>
+      <article className="queue-card card">
+        <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span className="policy-chip pending">policy hold</span>
+            <span className="mono muted" style={{ fontSize: 11 }}>{action.tool_name}</span>
+            <span className="mono muted" style={{ fontSize: 11, marginLeft: 'auto' }}>{timeAgo(action.created_at)}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+            <div className="card-title" title={action.target_path ?? undefined}>{label}</div>
+          </div>
+          <dl className="kv-grid">
+            <dt>rule</dt><dd>{action.matched_rule ?? '—'}</dd>
+            <dt>reason</dt><dd>{action.policy_reason ?? '—'}</dd>
+            <dt>session</dt><dd><code>{action.session_id.slice(0, 8)}…</code></dd>
+          </dl>
+        </div>
+        <footer className="drawer-foot" style={{ borderTop: '1px solid var(--line)' }}>
+          <button
+            className="btn danger"
+            onClick={() => setModal('reject')}
+            disabled={reject.isPending}
+          >
+            <Icon name="x" size={12} /> Reject
+          </button>
+          <div className="spacer" />
+          <button
+            className="btn primary"
+            onClick={() => setModal('approve')}
+            disabled={approve.isPending}
+          >
+            <Icon name="check" size={12} /> Approve
+          </button>
+        </footer>
+      </article>
+
+      <ConfirmModal
+        open={modal === 'approve'}
+        title="Approve this action?"
+        body={<span>The agent will be unblocked and the write will proceed.</span>}
+        confirmLabel="Approve"
+        onClose={() => setModal(null)}
+        onConfirm={() => {
+          approve.mutate(action.action_id);
+          setModal(null);
+        }}
+      />
+      <ConfirmModal
+        open={modal === 'reject'}
+        title="Reject this action?"
+        body={<span>The agent will see a rejection and the write will be cancelled.</span>}
+        withReason
+        reasonPlaceholder="Why reject?"
+        confirmLabel="Reject"
+        tone="danger"
+        onClose={() => setModal(null)}
+        onConfirm={(reason) => {
+          reject.mutate({ id: action.action_id, reason: reason ?? 'Rejected' });
+          setModal(null);
+        }}
+      />
+    </>
+  );
 }
 
 function ApprovalCard({ req }: { req: ApprovalRequest }) {
