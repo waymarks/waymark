@@ -1,3 +1,16 @@
+## [4.3.1] — 2026-04-30
+
+### Added
+- (Add changes here)
+
+### Changed
+- (Add changes here)
+
+### Fixed
+- (Add changes here)
+
+---
+
 ## [4.3.0] — 2026-04-29
 
 ### Added

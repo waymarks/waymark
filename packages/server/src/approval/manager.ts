@@ -216,7 +216,7 @@ export function submitApprovalDecision(
 
     // Verify approver is authorized for this request
     const approvers = JSON.parse(request.approver_ids) as string[];
-    if (!approvers.includes(approver_id)) {
+    if (approvers.length > 0 && !approvers.includes(approver_id)) {
       throw new Error(`${approver_id} is not authorized to approve this request`);
     }
 

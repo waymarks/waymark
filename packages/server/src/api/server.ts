@@ -376,10 +376,16 @@ app.post('/api/slack/interact', async (req, res) => {
 
     if (actionId === 'waymark_approve') {
       const result = await approvePendingAction(actionValue, 'slack');
+      if (result.success) {
+        emit('actions', { action_id: actionValue, kind: 'approved' });
+      }
       return res.json({ text: result.success ? '✅ Approved by slack' : `❌ Error: ${result.error}` });
     }
     if (actionId === 'waymark_reject') {
       const result = await rejectPendingAction(actionValue, 'Rejected via Slack');
+      if (result.success) {
+        emit('actions', { action_id: actionValue, kind: 'rejected' });
+      }
       return res.json({ text: result.success ? '❌ Rejected by slack' : `❌ Error: ${result.error}` });
     }
     res.status(400).json({ error: `Unknown action_id: ${actionId}` });

@@ -286,6 +286,7 @@ export function useDecideEscalation(targetId: string) {
     onSuccess: (_, vars) => {
       qc.invalidateQueries({ queryKey: ['escalations'] });
       qc.invalidateQueries({ queryKey: ['approvals'] });
+      qc.invalidateQueries({ queryKey: ['actions'] });
       toast.push({
         tone: 'ok',
         message: vars.decision === 'proceed' ? 'Allowed to proceed.' : 'Blocked.',

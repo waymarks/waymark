@@ -7,7 +7,7 @@ export function TweaksPopover() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
-  const { theme, density, grouping, accent, setTheme, setDensity, setGrouping, setAccent } = useUI();
+  const { theme, density, grouping, accent, reviewerId, setTheme, setDensity, setGrouping, setAccent, setReviewerId } = useUI();
 
   useEffect(() => {
     if (!open) return;
@@ -69,6 +69,16 @@ export function TweaksPopover() {
                 />
               ))}
             </div>
+          </TweakRow>
+          <h4 style={{ marginTop: 12 }}>Identity</h4>
+          <TweakRow label="Reviewer ID">
+            <input
+              type="text"
+              className="tweak-input"
+              value={reviewerId}
+              placeholder="ui-reviewer"
+              onChange={(e) => setReviewerId(e.target.value)}
+            />
           </TweakRow>
         </div>
       )}
