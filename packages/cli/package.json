@@ -1,6 +1,6 @@
 {
   "name": "@way_marks/cli",
-  "version": "4.3.2",
+  "version": "4.4.0",
   "description": "Control what AI agents can do in your codebase",
   "author": "Waymark <hello@waymarks.dev>",
   "license": "MIT",
@@ -43,7 +43,7 @@
     ]
   },
   "dependencies": {
-    "@way_marks/server": "4.3.2"
+    "@way_marks/server": "4.4.0"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

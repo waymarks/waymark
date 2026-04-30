@@ -1,5 +1,3 @@
-https://github.com/user-attachments/assets/5940e42a-e231-4311-8e24-1ea37699662e
-
 # Waymark
 
 > ⚠️ **Package renamed as of v0.5.0**
@@ -15,7 +13,23 @@ https://github.com/user-attachments/assets/5940e42a-e231-4311-8e24-1ea37699662e
 
 ---
 
-## ✨ What's New in v1.0.1
+## ✨ What's New in v4.3.2
+
+**Bug fix: Approvals inbox now shows all pending actions**
+
+The `/approvals` page was always showing “Inbox zero” even when policy-held writes were waiting. Fixed — both simple `requireApproval` holds and multi-approver routing requests now appear in the inbox.
+
+Also in v4.3.1:
+- Anyone-can-approve routes no longer incorrectly reject all approvers
+- Reviewer ID is now editable from the settings popover (top-right ⚙️)
+- Actions list refreshes immediately after an escalation decision (no more 30-second wait)
+- Slack Approve / Reject buttons now push live updates to all open browser tabs instantly
+
+See [CHANGELOG](CHANGELOG.md) for details.
+
+---
+
+## ✨ What's New in v4.1.0
 
 **Stability Patch**
 
@@ -124,14 +138,14 @@ allowed  → executes + logged
 blocked  → stopped + logged
 pending  → held + approval required
     ↓
-Dashboard: http://localhost:3001
+Dashboard: http://localhost:<port>
 ```
 
 ---
 
 ## Dashboard
 
-Open **[http://localhost:3001](http://localhost:3001)** after running
+Open **[http://localhost:\<port\>](http://localhost:47000)** after running
 `npx @way_marks/cli start`.
 
 - **Project name shown in header** — dashboard title displays
@@ -214,7 +228,7 @@ Get notified when an agent action needs approval:
 # Add to .env in your project
 WAYMARK_SLACK_WEBHOOK_URL=https://hooks.slack.com/...
 WAYMARK_SLACK_CHANNEL=#engineering
-WAYMARK_BASE_URL=http://localhost:3001
+WAYMARK_BASE_URL=http://localhost:47000
 ```
 
 Create a Slack webhook at:
@@ -226,7 +240,7 @@ api.slack.com/apps → Incoming Webhooks
 
 - **Claude Code** — native MCP integration, all features
 - **Claude Desktop** — native MCP integration, all features
-- **GitHub Copilot CLI** — experimental, CLI logging via wrapper
+- **GitHub Copilot CLI** — now first-class, identical to Claude. `waymark init` auto-registers Waymark in `~/.copilot/mcp-config.json` and generates `COPILOT.md`. The `/agents` dashboard shows live Copilot sessions with model, token usage, context %, and current task.
 - **Any MCP-compatible agent** — register the Waymark MCP server in your agent config
 - More integrations coming (see [Platform Guide](../docs/README_PLATFORMS.md))
 

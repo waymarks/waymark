@@ -1,4 +1,4 @@
-## [4.3.2] — 2026-04-30
+## [4.4.0] — 2026-04-30
 
 ### Added
 - (Add changes here)
@@ -11,16 +11,22 @@
 
 ---
 
-## [4.3.1] — 2026-04-30
-
-### Added
-- (Add changes here)
-
-### Changed
-- (Add changes here)
+## [4.3.2] — 2026-04-30
 
 ### Fixed
-- (Add changes here)
+
+- **Approvals page empty despite pending actions** — The `/approvals` inbox was always showing “Inbox zero” even with policy-held writes waiting. Root cause: two separate approval systems (simple per-file policy holds vs. multi-approver routing) were not connected in the UI. The approvals inbox now surfaces both types. Policy-held actions (from `requireApproval` in `waymark.config.json`) appear first with Approve / Reject buttons; multi-approver routing requests appear below them.
+
+---
+
+## [4.3.1] — 2026-04-30
+
+### Fixed
+
+- **Authorization check rejected everyone when no specific approvers were configured** — Approval routes with an empty approver list (meaning anyone can approve) were incorrectly blocking all approval attempts. Fixed so that an empty list correctly means “any reviewer may decide”.
+- **No way to change reviewer identity from the UI** — Added a Reviewer ID field to the settings popover (top-right tweaks menu). The identity is saved across sessions and used when you approve or escalate requests. Fixes mismatches when a route requires a named approver.
+- **Actions view stale after escalation decision** — The Actions list was not refreshing immediately after an escalation decision; it waited for the 30-second polling backstop. Now updates instantly.
+- **Browser not live-updating after Slack approve / reject** — Clicking Approve or Reject in a Slack notification now pushes an instant update to every open browser tab via SSE, instead of waiting for the next poll.
 
 ---
 
