@@ -44,6 +44,7 @@ import type {
   SessionSummary,
   SummaryStats,
   TeamMember,
+  VersionInfo,
 } from './types';
 
 export const api = {
@@ -54,6 +55,7 @@ export const api = {
     request<SessionActionsResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/actions`),
   getStats: () => request<SummaryStats>('/api/stats'),
   getProject: () => request<ProjectInfo>('/api/project'),
+  getVersion: () => request<VersionInfo>('/api/version'),
   getHubProjects: () => request<Record<string, HubProject>>('/api/hub/projects'),
 
   getTeam: () => request<TeamMember[]>('/api/team/members'),

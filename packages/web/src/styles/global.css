@@ -1557,6 +1557,79 @@
 .port-session-id { color: var(--ink-3); font-size: 11px; }
 .orphan-row td { color: var(--warn); }
 
+/* ------- Version Banner ------- */
+.version-banner {
+  background: var(--info-dim);
+  border-bottom: 1px solid var(--info);
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  animation: slideDown 0.2s ease-out;
+}
+
+.version-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  color: var(--info);
+  font-size: 13px;
+}
+
+.version-banner-icon {
+  color: var(--info);
+  flex-shrink: 0;
+}
+
+.version-banner-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.version-banner-action {
+  color: var(--info);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 0.1s;
+}
+
+.version-banner-action:hover {
+  opacity: 0.8;
+}
+
+.version-banner-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: var(--r-2);
+  color: var(--info);
+  cursor: pointer;
+  transition: background 0.1s;
+  flex-shrink: 0;
+}
+
+.version-banner-close:hover {
+  background: var(--info);
+  color: var(--bg-0);
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* ------- Scrollbars ------- */
 .drawer-body::-webkit-scrollbar,
 .code-block::-webkit-scrollbar { width: 8px; }

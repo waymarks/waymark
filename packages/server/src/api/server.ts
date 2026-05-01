@@ -11,6 +11,7 @@ import { submitEscalationDecision as submitEscalationDecisionManager, getEscalat
 import { attachSubscriber, emit } from './events';
 import { MultiCollector } from '../collectors/multi-collector';
 import { createAgentMonitorRouter } from './routes/agent-monitor';
+import { getVersionInfo } from '../services/version';
 
 // Import registry for Phase 2 hub navigation
 const registryPath = path.join(process.env.HOME || process.env.USERPROFILE || '', '.waymark', 'registry.json');
@@ -544,6 +545,16 @@ app.get('/api/project', (_req, res) => {
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/version — returns version information
+app.get('/api/version', async (req, res) => {
+  try {
+    const versionInfo = await getVersionInfo();
+    res.json(versionInfo);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to check version', status: 500 });
   }
 });
 

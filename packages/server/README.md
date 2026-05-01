@@ -52,6 +52,7 @@ All endpoints are served by `dist/api/server.js` on port 3001.
 | `POST` | `/api/slack/interact` | Slack interactive component handler (approve/reject from Slack message buttons). |
 | `GET` | `/api/sessions` | List all session IDs that have logged actions. |
 | `GET` | `/api/config` | Return the current parsed `waymark.config.json` for the active project. |
+| `GET` | `/api/version` | Return version information: `{ currentVersion, latestVersion, updateAvailable }`. Checks npm registry with 24-hour cache. Used by dashboard VersionBanner for update notifications. |
 | `GET` | `*` | Catch-all — serves the dashboard `index.html`. |
 
 ---

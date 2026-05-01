@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { checkVersion } from '../utils/version-check';
 
 export async function run(): Promise<void> {
   const projectRoot = process.cwd();
@@ -38,6 +39,12 @@ export async function run(): Promise<void> {
     }
   } catch { /* not running */ }
 
+  // Check version (non-blocking)
+  let versionInfo: Awaited<ReturnType<typeof checkVersion>> | null = null;
+  try {
+    versionInfo = await checkVersion();
+  } catch { /* version check failed, continue anyway */ }
+
   console.log('Waymark — Project Status');
   console.log('─'.repeat(35));
   console.log(`Project:    ${projectName}`);
@@ -51,4 +58,14 @@ export async function run(): Promise<void> {
   if (running) console.log(`Pending:    ${pending} actions`);
   if (!running) console.log(`Start with: npx @way_marks/cli start`);
   if (startedAt) console.log(`Started:    ${startedAt}`);
+
+  // Display version info
+  if (versionInfo) {
+    console.log('─'.repeat(35));
+    console.log(`Version:    ${versionInfo.current}`);
+    if (versionInfo.updateAvailable && versionInfo.latest) {
+      console.log(`⚠️  New version ${versionInfo.latest} available!`);
+      console.log(`Update:     npm install -g @way_marks/cli@latest`);
+    }
+  }
 }

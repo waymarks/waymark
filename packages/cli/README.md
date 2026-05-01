@@ -139,6 +139,16 @@ npx @way_marks/cli logs --pending   # Show only pending actions
 npx @way_marks/cli logs --blocked   # Show only blocked actions
 ```
 
+### Version Management
+
+```bash
+npx @way_marks/cli --version     # Check installed version
+npx @way_marks/cli status        # Shows version + update banner if available
+npx @way_marks/cli update        # Install latest version from npm
+```
+
+The CLI automatically checks for updates on startup (non-blocking, 3-second timeout). Results are cached for 24 hours. See the [main README](../../README.md#checking-for-updates) for detailed troubleshooting and update instructions.
+
 ---
 
 ## Slack Notifications

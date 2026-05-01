@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { runVersionCheckAsync } from './utils/version-check';
+
 function getVersion(): string {
   // dist/index.js → ../package.json (when published or installed globally)
   // dev (ts-node from src/) → ../package.json relative to repo
@@ -24,6 +26,7 @@ function printHelp(): void {
   console.log('  pause                 Pause a project (keep port allocated)');
   console.log('  resume                Resume a paused project');
   console.log('  status                Show current Waymark status and pending count');
+  console.log('  update                Check for and install the latest version');
   console.log('  logs                  Show recent action log');
   console.log('  agents                List running AI agent sessions');
   console.log('  list                  List all registered Waymark projects');
@@ -52,6 +55,11 @@ if (command === '-h' || command === '--help' || command === 'help' || command ==
   process.exit(command === undefined ? 0 : 0);
 }
 
+// Fire off version check asynchronously (non-blocking)
+runVersionCheckAsync(1000).catch(() => {
+  // Silently ignore any errors from version check
+});
+
 switch (command) {
   case 'init':
     require('./commands/init').run();
@@ -70,6 +78,9 @@ switch (command) {
     break;
   case 'status':
     require('./commands/status').run();
+    break;
+  case 'update':
+    require('./commands/update').run();
     break;
   case 'logs':
     require('./commands/logs').run();

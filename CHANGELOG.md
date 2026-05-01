@@ -1,4 +1,4 @@
-## [4.4.2] — 2026-05-01
+## [4.4.3] — 2026-05-01
 
 ### Added
 - (Add changes here)
@@ -11,16 +11,32 @@
 
 ---
 
-## [4.4.1] — 2026-04-30
+## [Unreleased]
 
 ### Added
-- (Add changes here)
-
-### Changed
-- (Add changes here)
+- **Version detection system** — Waymark now checks for new versions automatically
+  - New `GET /api/version` endpoint returns `{ currentVersion, latestVersion, updateAvailable }`
+  - New `npx @way_marks/cli update` command to install the latest version
+  - CLI `status` command now shows version info + update notification banner
+  - Dashboard `VersionBanner` component with clickable update button
+  - 24-hour smart caching of npm version checks to minimize network requests
+  - Startup-time non-blocking version check with user-friendly update notice
 
 ### Fixed
-- (Add changes here)
+- **Test suite compatibility** — All test files now use vitest syntax
+  - Converted 5 test files to vitest format
+  - All 354 tests now pass (100% pass rate)
+
+---
+
+## [4.4.2] — 2026-05-01
+
+### Fixed
+- **Agent Monitor "Unexpected token '<!doctype'" JSON parse error** — The agent monitor endpoint was missing from the compiled server binary, causing all requests to fall back to the SPA HTML. Fixed by rebuilding the server binary and adding a JSON 404 guard for unmapped API routes.
+
+---
+
+## [4.4.1] — 2026-04-30
 
 ---
 

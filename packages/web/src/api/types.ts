@@ -124,6 +124,12 @@ export interface ProjectInfo {
   projectRoot: string;
 }
 
+export interface VersionInfo {
+  currentVersion: string;
+  latestVersion: string;
+  updateAvailable: boolean;
+}
+
 export interface TeamMember {
   member_id: string;
   name: string;
