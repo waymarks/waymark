@@ -1,3 +1,9 @@
+## [4.4.7] — 2026-05-01
+
+### Added
+- add cache-clear command for troubleshooting stale cache issues
+
+---
 ## [4.4.6] — 2026-05-01
 
 ### Added

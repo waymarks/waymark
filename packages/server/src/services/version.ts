@@ -156,11 +156,20 @@ export async function getVersionInfo(): Promise<VersionInfo> {
   // Check cache first
   const cache = readCacheFile();
   if (cache && isCacheValid(cache)) {
-    return {
-      currentVersion,
-      latestVersion: cache.latestVersion,
-      updateAvailable: compareVersions(currentVersion, cache.latestVersion),
-    };
+    // Smart cache invalidation: if current version is newer than cached latest,
+    // the cache is stale (e.g., new version was released and installed)
+    const currentIsNewer = compareVersions(cache.latestVersion, currentVersion);
+    if (currentIsNewer) {
+      // Cache is stale, invalidate it and fetch fresh data
+      // This prevents showing "update available" when user already has the latest
+    } else {
+      // Cache is good
+      return {
+        currentVersion,
+        latestVersion: cache.latestVersion,
+        updateAvailable: compareVersions(currentVersion, cache.latestVersion),
+      };
+    }
   }
   
   // Prevent multiple concurrent fetches within a short window
