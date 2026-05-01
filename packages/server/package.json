@@ -1,6 +1,6 @@
 {
   "name": "@way_marks/server",
-  "version": "4.4.1",
+  "version": "4.4.2",
   "description": "Waymark MCP server and dashboard",
   "author": "Waymark <hello@waymarks.dev>",
   "license": "MIT",
@@ -34,9 +34,9 @@
     "test": "jest",
     "test:coverage": "jest --coverage",
     "start": "node dist/api/server.js",
-    "dev:api": "nodemon --exec ts-node src/api/server.ts",
-    "dev:mcp": "ts-node src/mcp/server.ts",
-    "db:reset": "node -e \"require('fs').rmSync('./data/waymark.db', {force:true}); console.log('DB deleted.')\" && ts-node -e \"require('./src/db/database'); console.log('DB recreated.')\""
+    "dev:api": "WAYMARK_PROJECT_ROOT=${WAYMARK_PROJECT_ROOT:-$(cd ../.. && pwd)} nodemon --exec ts-node src/api/server.ts",
+    "dev:mcp": "WAYMARK_PROJECT_ROOT=${WAYMARK_PROJECT_ROOT:-$(cd ../.. && pwd)} ts-node src/mcp/server.ts",
+    "db:reset": "node -e \"require('fs').rmSync('./.waymark/waymark.db', {force:true}); console.log('DB deleted.')\" && ts-node -e \"require('./src/db/database'); console.log('DB recreated.')\""
   },
   "jest": {
     "preset": "ts-jest",

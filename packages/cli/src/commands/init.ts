@@ -326,7 +326,7 @@ export async function run(): Promise<void> {
   const gitignoreContent = fs.existsSync(gitignorePath)
     ? fs.readFileSync(gitignorePath, 'utf8')
     : '';
-  const linesToAdd = ['.waymark/', 'waymark.db', 'data/waymark.db']
+  const linesToAdd = ['.waymark/']
     .filter(line => !gitignoreContent.includes(line));
   if (linesToAdd.length > 0) {
     const section = '\n# Waymark\n' + linesToAdd.join('\n') + '\n';

@@ -53,8 +53,6 @@ tmp/
 temp/
 
 # Waymark
-waymark.db
-data/waymark.db
 
 # Docuflow
 .docuflow/

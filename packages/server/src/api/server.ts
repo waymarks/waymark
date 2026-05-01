@@ -1203,7 +1203,12 @@ app.delete('/api/remediation/policies/:policy_id', (req, res) => {
 
 // Fallback: serve UI for any unmatched route. If the dashboard hasn't been
 // built yet, emit a friendly setup banner instead of a 404.
+// API paths that reach here have no matching route — return JSON so the
+// client never receives HTML and silently misparses it as a JSON error.
 app.get('*', (_req, res) => {
+  if (_req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: `No route: ${_req.method} ${_req.path}` });
+  }
   if (UI_BUILT) {
     return res.sendFile(UI_INDEX);
   }
