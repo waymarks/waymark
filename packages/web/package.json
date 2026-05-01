@@ -1,6 +1,6 @@
 {
   "name": "@way_marks/web",
-  "version": "4.4.3",
+  "version": "4.4.4",
   "private": true,
   "description": "Waymark dashboard (React + Vite)",
   "type": "module",

@@ -1,6 +1,6 @@
 {
   "name": "@way_marks/server",
-  "version": "4.4.3",
+  "version": "4.4.4",
   "description": "Waymark MCP server and dashboard",
   "author": "Waymark <hello@waymarks.dev>",
   "license": "MIT",
