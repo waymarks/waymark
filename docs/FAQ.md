@@ -533,3 +533,12 @@ Not yet! If you're using Waymark, consider:
 
 Last updated: 2026-04-16  
 For the latest info, see: https://github.com/shaifulshabuj/waymark
+
+---
+
+## See also
+
+- [Documentation map](README.md)
+- [Approvals](APPROVALS.md) · [Escalations](ESCALATIONS.md) · [Remediation](REMEDIATION.md)
+- [Sessions](SESSIONS.md) · [Platforms](README_PLATFORMS.md) · [Copilot CLI](COPILOT_CLI.md)
+- [Project README](../README.md) · [Features](../FEATURES.md) · [Changelog](../CHANGELOG.md)

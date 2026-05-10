@@ -401,3 +401,13 @@ This is experimental support. If you have suggestions or find bugs:
 - ⭐ Star the repo: If it's helpful!
 
 Thanks for trying Waymark + Copilot CLI! 🚀
+
+---
+
+## See also
+
+- [Documentation map](README.md)
+- [Platform support](README_PLATFORMS.md)
+- [Approvals](APPROVALS.md) · [Remediation](REMEDIATION.md) · [Sessions](SESSIONS.md)
+- [`AGENTS.md`](../AGENTS.md) — agent rules that apply to Copilot CLI too.
+- [Project README](../README.md) · [FAQ](FAQ.md)

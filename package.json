@@ -8,6 +8,7 @@
     "dev": "npm run dev --workspaces --if-present",
     "release": "bash scripts/release.sh",
     "test": "vitest run",
+    "docs:graph": "node scripts/wiki-graph.mjs",
     "test:watch": "vitest watch",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui"

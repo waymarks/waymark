@@ -59,3 +59,6 @@ temp/
 
 # Playwright
 .playwright-mcp/
+
+# Project-to-project references
+docs/feedback/

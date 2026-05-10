@@ -1,3 +1,13 @@
+## [4.5.0] — 2026-05-10
+
+### Added
+- add script to generate a link graph from wiki frontmatter
+
+### Fixed
+- update asset script reference in index.html and add feedback directory to .gitignore
+- fix update banner always showing for global installs
+
+---
 ## [4.4.7] — 2026-05-01
 
 ### Added

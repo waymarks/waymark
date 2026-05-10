@@ -12,9 +12,15 @@ const NPM_TIMEOUT_MS = 5000; // 5 seconds
 const CACHE_FILE_NAME = 'version-cache.json';
 
 let projectRoot = process.env.WAYMARK_PROJECT_ROOT || process.cwd();
+let currentVersionOverride: string | null = null;
 
 export function setProjectRoot(root: string): void {
   projectRoot = root;
+}
+
+/** For testing only — override the version returned by getCurrentVersion(). */
+export function setCurrentVersionForTest(version: string | null): void {
+  currentVersionOverride = version;
 }
 
 function getCachePath(): string {
@@ -125,21 +131,50 @@ async function fetchLatestVersionFromNpm(): Promise<string | null> {
   }
 }
 
+function isWaymarkPackageJson(packageJson: { version?: string; name?: string }): boolean {
+  if (!packageJson.name) return false;
+  return packageJson.name.includes('way_marks') || packageJson.name.includes('waymark');
+}
+
 function getCurrentVersion(): string {
-  try {
-    const cliPackageJsonPath = path.join(projectRoot, 'packages', 'cli', 'package.json');
-    
-    if (!fs.existsSync(cliPackageJsonPath)) {
-      return '0.0.0';
-    }
-    
-    const content = fs.readFileSync(cliPackageJsonPath, 'utf-8');
-    const packageJson = JSON.parse(content) as { version: string };
-    
-    return packageJson.version || '0.0.0';
-  } catch (error) {
-    return '0.0.0';
+  if (currentVersionOverride !== null) {
+    return currentVersionOverride;
   }
+
+  // Search these paths in order; accept the first file that (a) exists and
+  // (b) belongs to a waymark package (name contains "way_marks" or "waymark").
+  //
+  // Candidate 1 — compiled global/local npm install:
+  //   __dirname = .../node_modules/@way_marks/server/dist/services/
+  //   Two levels up → .../node_modules/@way_marks/server/package.json ✓
+  //
+  // Candidate 2 — ts-node inside monorepo (src/ not dist/):
+  //   __dirname = packages/server/src/services/
+  //   Three levels up → packages/server → no cli there
+  //   So explicitly check sibling packages/cli.
+  //
+  // Candidate 3 — monorepo dev with compiled output (dist/):
+  //   projectRoot = waymark checkout root → packages/cli/package.json ✓
+  const candidates = [
+    path.join(__dirname, '..', '..', 'package.json'),                            // compiled install
+    path.join(__dirname, '..', '..', '..', 'packages', 'cli', 'package.json'),  // ts-node monorepo
+    path.join(projectRoot, 'packages', 'cli', 'package.json'),                  // monorepo dev
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      if (!fs.existsSync(candidate)) continue;
+      const content = fs.readFileSync(candidate, 'utf-8');
+      const packageJson = JSON.parse(content) as { version?: string; name?: string };
+      if (packageJson.version && isWaymarkPackageJson(packageJson)) {
+        return packageJson.version;
+      }
+    } catch {
+      // try next candidate
+    }
+  }
+
+  return '0.0.0';
 }
 
 let lastFetchPromise: Promise<string | null> | null = null;
@@ -148,6 +183,7 @@ let lastFetchTime: number = 0;
 export function resetState(): void {
   lastFetchPromise = null;
   lastFetchTime = 0;
+  currentVersionOverride = null;
 }
 
 export async function getVersionInfo(): Promise<VersionInfo> {

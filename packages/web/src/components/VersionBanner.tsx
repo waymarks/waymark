@@ -7,10 +7,29 @@ interface VersionInfo {
   updateAvailable: boolean;
 }
 
+const DISMISS_STORAGE_KEY = (version: string) => `waymark_dismissed_version_${version}`;
+
+function isDismissedInStorage(version: string): boolean {
+  try {
+    return localStorage.getItem(DISMISS_STORAGE_KEY(version)) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+function setDismissedInStorage(version: string): void {
+  try {
+    localStorage.setItem(DISMISS_STORAGE_KEY(version), 'true');
+  } catch {
+    // ignore (private browsing, storage full, etc.)
+  }
+}
+
 export function VersionBanner() {
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [dismissed, setDismissed] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const fetchVersionInfo = async () => {
@@ -22,6 +41,10 @@ export function VersionBanner() {
         }
         const data = (await res.json()) as VersionInfo;
         setVersionInfo(data);
+        // Check if user already dismissed this specific version
+        if (data.latestVersion && isDismissedInStorage(data.latestVersion)) {
+          setDismissed(true);
+        }
       } catch (error) {
         // Fail gracefully - don't show banner on error
         console.debug('Failed to fetch version info:', error);
@@ -39,15 +62,21 @@ export function VersionBanner() {
   }
 
   const handleDismiss = () => {
+    if (versionInfo?.latestVersion) {
+      setDismissedInStorage(versionInfo.latestVersion);
+    }
     setDismissed(true);
   };
 
   const handleUpdateClick = () => {
-    // Copy update command to clipboard
     const command = 'npm install -g @way_marks/cli@latest';
     navigator.clipboard.writeText(command).then(() => {
-      // Optional: could show a toast here
-      console.log('Update command copied to clipboard');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }).catch(() => {
+      // Clipboard API blocked (e.g. non-HTTPS) — still give some feedback
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
     });
   };
 
@@ -63,7 +92,7 @@ export function VersionBanner() {
             onClick={handleUpdateClick}
             title="Copy update command to clipboard"
           >
-            Update now
+            {copied ? '✓ Copied!' : 'Update now'}
           </button>
         </div>
       </div>

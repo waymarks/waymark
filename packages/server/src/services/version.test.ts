@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
-import { getVersionInfo, setProjectRoot, resetState } from './version';
+import { getVersionInfo, setProjectRoot, resetState, setCurrentVersionForTest } from './version';
 
 // Mock fetch
 global.fetch = vi.fn();
@@ -21,6 +21,9 @@ describe('Version Service', () => {
     // Set up test project root
     setProjectRoot(testProjectRoot);
     
+    // Pin the current version so tests don't depend on __dirname-resolved package.json
+    setCurrentVersionForTest('4.4.2');
+    
     // Create test directories
     if (!fs.existsSync(path.join(testProjectRoot, '.waymark'))) {
       fs.mkdirSync(path.join(testProjectRoot, '.waymark'), { recursive: true });
@@ -31,7 +34,7 @@ describe('Version Service', () => {
     if (!fs.existsSync(path.dirname(cliPackagePath))) {
       fs.mkdirSync(path.dirname(cliPackagePath), { recursive: true });
     }
-    fs.writeFileSync(cliPackagePath, JSON.stringify({ version: '4.4.2' }));
+    fs.writeFileSync(cliPackagePath, JSON.stringify({ name: '@way_marks/cli', version: '4.4.2' }));
     
     // Clear cache file
     if (fs.existsSync(cacheFilePath)) {
@@ -179,9 +182,7 @@ describe('Version Service', () => {
   
   describe('Version comparison', () => {
     it('should detect patch version update: 4.4.1 < 4.4.2', async () => {
-      // Update current version to 4.4.1
-      const cliPackagePath = path.join(testProjectRoot, 'packages', 'cli', 'package.json');
-      fs.writeFileSync(cliPackagePath, JSON.stringify({ version: '4.4.1' }));
+      setCurrentVersionForTest('4.4.1');
       
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
@@ -194,9 +195,7 @@ describe('Version Service', () => {
     });
     
     it('should detect minor version update: 4.3.2 < 4.4.0', async () => {
-      // Update current version to 4.3.2
-      const cliPackagePath = path.join(testProjectRoot, 'packages', 'cli', 'package.json');
-      fs.writeFileSync(cliPackagePath, JSON.stringify({ version: '4.3.2' }));
+      setCurrentVersionForTest('4.3.2');
       
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
@@ -209,8 +208,7 @@ describe('Version Service', () => {
     });
     
     it('should detect major version update: 3.9.0 < 4.0.0', async () => {
-      const cliPackagePath = path.join(testProjectRoot, 'packages', 'cli', 'package.json');
-      fs.writeFileSync(cliPackagePath, JSON.stringify({ version: '3.9.0' }));
+      setCurrentVersionForTest('3.9.0');
       
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
@@ -223,6 +221,7 @@ describe('Version Service', () => {
     });
     
     it('should not report update when versions are equal', async () => {
+      // Uses the test fake (4.4.2) set in beforeEach
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
         json: async () => ({ version: '4.4.2' }),
@@ -234,8 +233,7 @@ describe('Version Service', () => {
     });
     
     it('should not report update when current is newer', async () => {
-      const cliPackagePath = path.join(testProjectRoot, 'packages', 'cli', 'package.json');
-      fs.writeFileSync(cliPackagePath, JSON.stringify({ version: '4.5.0' }));
+      setCurrentVersionForTest('4.5.0');
       
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
@@ -248,8 +246,7 @@ describe('Version Service', () => {
     });
     
     it('should handle versions with different part counts', async () => {
-      const cliPackagePath = path.join(testProjectRoot, 'packages', 'cli', 'package.json');
-      fs.writeFileSync(cliPackagePath, JSON.stringify({ version: '4' }));
+      setCurrentVersionForTest('4');
       
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
@@ -294,19 +291,26 @@ describe('Version Service', () => {
   
   describe('Edge cases', () => {
     it('should handle missing package.json gracefully', async () => {
-      // Remove the package.json
+      // Remove the test fake package.json from the project root
       const cliPackagePath = path.join(testProjectRoot, 'packages', 'cli', 'package.json');
       fs.unlinkSync(cliPackagePath);
       
       (global.fetch as jest.Mock).mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ version: '4.5.0' }),
+        json: async () => ({ version: '99.0.0' }),
       });
       
       const info = await getVersionInfo();
       
-      expect(info.currentVersion).toBe('0.0.0');
-      expect(info.latestVersion).toBe('4.5.0');
+      // When the project-root package.json is missing, getCurrentVersion() falls
+      // back to the server's own installed package.json (a real waymark version).
+      // We can't assert an exact version here since it changes with each release,
+      // but it must be a valid semver string (not '0.0.0') and updateAvailable
+      // must reflect comparison against npm latest (99.0.0).
+      expect(info.currentVersion).not.toBe('0.0.0');
+      expect(info.currentVersion).toMatch(/^\d+\.\d+\.\d+/);
+      expect(info.latestVersion).toBe('99.0.0');
+      expect(info.updateAvailable).toBe(true);
     });
     
     it('should handle cache file with missing fields', async () => {
