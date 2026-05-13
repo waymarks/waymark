@@ -1,3 +1,15 @@
+## [4.6.2] — 2026-05-13
+
+### Added
+- (No changes detected — review commits and add manually)
+
+---
+## [4.6.1] — 2026-05-13
+
+### Added
+- include npm download chart in release repo
+
+---
 ## [4.6.0] — 2026-05-12
 
 ### Added

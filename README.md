@@ -2,6 +2,16 @@ https://github.com/user-attachments/assets/5940e42a-e231-4311-8e24-1ea37699662e
 
 # Waymark
 
+[![npm downloads](https://img.shields.io/npm/dm/%40way_marks%2Fcli?label=%40way_marks%2Fcli&style=flat-square&color=6366f1)](https://www.npmjs.com/package/@way_marks/cli)
+[![npm downloads](https://img.shields.io/npm/dm/%40way_marks%2Fserver?label=%40way_marks%2Fserver&style=flat-square&color=10b981)](https://www.npmjs.com/package/@way_marks/server)
+[![npm version](https://img.shields.io/npm/v/%40way_marks%2Fcli?label=version&style=flat-square&color=374151)](https://www.npmjs.com/package/@way_marks/cli)
+
+![npm download chart](./docs/npm-downloads.svg)
+
+> Updated every 6 hours via GitHub Actions
+
+---
+
 > ⚠️ **Package renamed as of v0.5.0**
 > The old `@shaifulshabuj-waymarks` packages have been deprecated.
 > Please switch to the new package scope:
