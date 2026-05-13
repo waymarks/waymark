@@ -1,3 +1,9 @@
+## [4.6.3] — 2026-05-13
+
+### Added
+- (No changes detected — review commits and add manually)
+
+---
 ## [4.6.2] — 2026-05-13
 
 ### Added
