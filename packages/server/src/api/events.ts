@@ -9,7 +9,8 @@ export type EventTopic =
   | 'approval-routes'
   | 'escalation-rules'
   | 'config'
-  | 'risk';
+  | 'risk'
+  | 'agents';
 
 interface Subscriber {
   res: Response;

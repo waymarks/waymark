@@ -1668,3 +1668,213 @@
   .drawer { width: 100vw; }
   .kv-grid { grid-template-columns: 100px 1fr; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Agent Monitor — Phase 1–7 additions
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Session detail scroll container ── */
+.session-detail-scroll {
+  max-height: 320px;
+  overflow-y: auto;
+  border-top: 1px solid var(--line);
+  padding-top: var(--sp-2, 8px);
+}
+.session-detail-scroll::-webkit-scrollbar { width: 6px; }
+.session-detail-scroll::-webkit-scrollbar-thumb { background: var(--bg-3); border-radius: 3px; }
+
+/* ── "Show all N" expand toggle ── */
+.detail-expand-btn {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--fg-2);
+  cursor: pointer;
+  font-size: 11px;
+  margin-top: 4px;
+  padding: 2px 8px;
+}
+.detail-expand-btn:hover { background: var(--bg-2); color: var(--fg); }
+
+/* ── Clickable tool call rows ── */
+.clickable { cursor: pointer; }
+.clickable:hover { background: var(--bg-2); }
+
+/* ── Detail modal overlay ── */
+.detail-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.detail-modal {
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+  max-width: 720px;
+  width: 90vw;
+}
+.detail-modal-header {
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+.detail-modal-header h3 { font-size: 14px; font-weight: 600; margin: 0; }
+.detail-modal-header button {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--fg-2);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 3px 10px;
+}
+.detail-modal-header button:hover { background: var(--bg-2); color: var(--fg); }
+.detail-modal-pre {
+  flex: 1;
+  font-family: var(--mono, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
+  overflow: auto;
+  padding: 16px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* ── Waymark controlled badge ── */
+.badge-waymark {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 1px 6px;
+}
+
+/* ── Sparklines ── */
+.sparkline { display: inline-block; vertical-align: middle; }
+.burn-rate {
+  color: var(--fg-2);
+  font-size: 10px;
+  margin-left: 4px;
+}
+
+/* ── Port category chips ── */
+.port-cat {
+  border-radius: 3px;
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  text-transform: uppercase;
+}
+.port-cat-browser { background: color-mix(in srgb, var(--ok) 15%, transparent); color: var(--ok); }
+.port-cat-api     { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.port-cat-db      { background: color-mix(in srgb, var(--warn) 15%, transparent); color: var(--warn); }
+.port-cat-system  { background: color-mix(in srgb, var(--fg-2) 15%, transparent); color: var(--fg-2); }
+.port-cat-other   { background: var(--bg-2); color: var(--fg-2); }
+
+/* ── Port visibility ── */
+.port-public { color: var(--ok); }
+.port-private { color: var(--fg-2); }
+
+/* ── Ports section header with filter ── */
+.ports-section-header {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+/* ── Rate limit setup guide ── */
+.rate-limit-setup {
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 16px;
+}
+.rate-limit-setup strong { display: block; margin-bottom: 8px; }
+.rate-limit-setup ol { margin: 8px 0 0 16px; padding: 0; }
+.rate-limit-setup li { margin-bottom: 4px; color: var(--fg-2); font-size: 13px; }
+.inline-code {
+  background: var(--bg-3);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-family: var(--mono, monospace);
+  font-size: 12px;
+  padding: 2px 6px;
+}
+
+/* ── Rate limit usage bar ── */
+.rl-bar-row { align-items: center; display: flex; gap: 8px; margin-top: 8px; }
+.rl-bar-label { color: var(--fg-2); font-size: 11px; min-width: 48px; }
+.rl-bar-track {
+  background: var(--bg-3);
+  border-radius: 3px;
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+}
+.rl-bar-fill {
+  border-radius: 3px;
+  height: 100%;
+  min-width: 2px;
+  transition: width 0.3s ease;
+}
+
+/* ── History table ── */
+.history-table { border-collapse: collapse; font-size: 13px; width: 100%; }
+.history-table th {
+  border-bottom: 1px solid var(--line);
+  color: var(--fg-2);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 6px 8px;
+  text-align: left;
+  text-transform: uppercase;
+}
+.history-table td { border-bottom: 1px solid var(--line); padding: 6px 8px; vertical-align: middle; }
+.history-table tr:last-child td { border-bottom: none; }
+.history-table tr:hover td { background: var(--bg-2); }
+
+/* ── Generic filter select ── */
+.filter-select {
+  background: var(--bg-1);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--fg);
+  font-size: 12px;
+  padding: 3px 8px;
+}
+.filter-select:focus { outline: 2px solid var(--accent); }
+
+/* ── Prompt preview ── */
+.detail-prompt-preview {
+  background: var(--bg-2);
+  border-radius: 4px;
+  color: var(--fg-2);
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+  margin: 0;
+  max-height: 60px;
+  overflow: hidden;
+  padding: 6px 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

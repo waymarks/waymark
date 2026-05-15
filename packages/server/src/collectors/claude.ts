@@ -669,7 +669,7 @@ function processTranscriptLine(val: Record<string, unknown>, result: TranscriptR
 
     // Capture initial prompt (first real user message)
     if (!result.initialPrompt && !isToolResult && typeof content === 'string') {
-      result.initialPrompt = redactSecrets(content.slice(0, 120));
+      result.initialPrompt = redactSecrets(content.slice(0, 2000));
     }
   }
 }
@@ -844,9 +844,9 @@ function parseIso(ts: string | undefined): number {
 
 function extractToolArg(toolName: string, input: Record<string, unknown>): string {
   const filePath = (input['file_path'] as string) || (input['path'] as string);
-  if (filePath) return redactSecrets(filePath.split('/').pop() ?? filePath).slice(0, 120);
+  if (filePath) return redactSecrets(filePath).slice(0, 2000);
   const cmd = (input['command'] as string) || (input['cmd'] as string);
-  if (cmd) return redactSecrets(cmd).slice(0, 120);
+  if (cmd) return redactSecrets(cmd).slice(0, 2000);
   return '';
 }
 

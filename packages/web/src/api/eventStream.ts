@@ -10,7 +10,8 @@ type Topic =
   | 'approval-routes'
   | 'escalation-rules'
   | 'config'
-  | 'risk';
+  | 'risk'
+  | 'agents';
 
 const INVALIDATE_KEYS: Record<Topic, Array<readonly string[]>> = {
   actions:            [['actions'], ['stats']],
@@ -22,6 +23,7 @@ const INVALIDATE_KEYS: Record<Topic, Array<readonly string[]>> = {
   'escalation-rules': [['escalation-rules']],
   config:             [['config']],
   risk:               [['remediation'], ['sessions']],
+  agents:             [['agent-snapshot'], ['agent-history']],
 };
 
 /**

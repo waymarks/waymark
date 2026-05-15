@@ -16,6 +16,101 @@
 
 import { Router, Request, Response } from 'express';
 import { CollectorSnapshot } from '../../collectors/multi-collector';
+import {
+  agentHistoryExists,
+  insertAgentHistory,
+  getAgentHistory,
+  isSessionWaymarkControlled,
+} from '../../db/database';
+import { emit } from '../events';
+
+// ─── Port classification helpers ─────────────────────────────────────────────
+
+const BROWSER_PORTS = new Set([3000, 3001, 3002, 4200, 5173, 5174, 8080, 8081, 8082]);
+const API_PORTS = new Set([4000, 4001, 5000, 5001, 8000, 8888]);
+const DB_PORTS = new Set([5432, 5433, 3306, 27017, 6379, 6380, 1521, 5984]);
+
+function classifyPort(port: number): string {
+  if (port < 1024) return 'system';
+  if (BROWSER_PORTS.has(port)) return 'browser';
+  if (API_PORTS.has(port) || (port >= 4000 && port <= 4999)) return 'api';
+  if (DB_PORTS.has(port)) return 'db';
+  return 'other';
+}
+
+function isPublicBinding(lsofName: string): boolean {
+  return lsofName.startsWith('*:') || lsofName.startsWith('0.0.0.0:') || lsofName.startsWith(':::');
+}
+
+// ─── Session death tracker ────────────────────────────────────────────────────
+
+let previousSessionIds = new Set<string>();
+let previousSnapshotMap = new Map<string, import('../../collectors/types').AgentSession>();
+
+function persistDeadSessions(snapshot: CollectorSnapshot): void {
+  const currentIds = new Set(snapshot.sessions.map((s) => s.sessionId));
+
+  for (const deadId of previousSessionIds) {
+    if (!currentIds.has(deadId)) {
+      const s = previousSnapshotMap.get(deadId);
+      if (s && !agentHistoryExists(deadId)) {
+        try {
+          insertAgentHistory({
+            session_id: s.sessionId,
+            agent_cli: s.agentCli,
+            pid: s.pid,
+            cwd: s.cwd,
+            project_name: s.projectName,
+            started_at: s.startedAt,
+            ended_at: Date.now(),
+            final_status: s.status,
+            total_input_tokens: s.totalInputTokens ?? 0,
+            total_output_tokens: s.totalOutputTokens ?? 0,
+            turn_count: s.turnCount ?? 0,
+            compaction_count: s.compactionCount ?? 0,
+            model: s.model,
+            git_branch: s.gitBranch,
+            initial_prompt: s.initialPrompt ? s.initialPrompt.slice(0, 2000) : null,
+            waymark_controlled: isSessionWaymarkControlled(s.sessionId) ? 1 : 0,
+          });
+          emit('agents', { kind: 'session_died', session_id: deadId });
+        } catch {
+          // Non-fatal: history persistence is best-effort
+        }
+      }
+    }
+  }
+
+  previousSessionIds = currentIds;
+  previousSnapshotMap = new Map(snapshot.sessions.map((s) => [s.sessionId, s]));
+}
+
+// ─── Port binding lookup ──────────────────────────────────────────────────────
+
+import { execSync } from 'child_process';
+
+// Returns Map<port, lsofName> e.g. 3000 → "*:3000", 5432 → "127.0.0.1:5432"
+// Best-effort: returns empty map on any failure.
+function getPortBindings(): Map<number, string> {
+  const result = new Map<number, string>();
+  try {
+    const out = execSync('lsof -i -P -n -sTCP:LISTEN', {
+      timeout: 3000,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    for (const line of out.split('\n').slice(1)) {
+      const cols = line.trim().split(/\s+/);
+      if (cols.length < 9) continue;
+      const addr = cols[8] ?? '';
+      const portStr = addr.split(':').pop();
+      if (!portStr) continue;
+      const port = parseInt(portStr, 10);
+      if (!isNaN(port) && !result.has(port)) result.set(port, addr);
+    }
+  } catch { /* lsof unavailable or timed out */ }
+  return result;
+}
 
 // ─── Router factory ───────────────────────────────────────────────────────────
 
@@ -101,6 +196,7 @@ export function createAgentMonitorRouter(
   // ── GET /ports ─────────────────────────────────────────────────────────────
   router.get('/ports', (_req: Request, res: Response) => {
     const snapshot = getSnapshot();
+    const bindings = getPortBindings();
 
     const agentPorts: Array<{
       sessionId: string;
@@ -108,25 +204,39 @@ export function createAgentMonitorRouter(
       pid: number;
       port: number;
       command: string;
+      category: string;
+      isPublic: boolean;
     }> = [];
 
     for (const s of snapshot.sessions) {
       for (const child of s.children) {
         if (child.port != null) {
+          const lsofName = bindings.get(child.port) ?? '';
           agentPorts.push({
             sessionId: s.sessionId,
             agentCli: s.agentCli,
             pid: child.pid,
             port: child.port,
             command: child.command,
+            category: classifyPort(child.port),
+            isPublic: lsofName ? isPublicBinding(lsofName) : false,
           });
         }
       }
     }
 
+    const orphanPorts = snapshot.orphanPorts.map((o) => {
+      const lsofName = bindings.get(o.port) ?? '';
+      return {
+        ...o,
+        category: classifyPort(o.port),
+        isPublic: lsofName ? isPublicBinding(lsofName) : false,
+      };
+    });
+
     res.json({
       agentPorts,
-      orphanPorts: snapshot.orphanPorts,
+      orphanPorts,
       collectedAt: snapshot.collectedAt,
     });
   });
@@ -160,23 +270,82 @@ export function createAgentMonitorRouter(
   });
 
   // ── GET /snapshot ──────────────────────────────────────────────────────────
-  // Returns the raw `CollectorSnapshot`. Two consumers depend on this exact
-  // shape: (1) the MCP process's `fetchSnapshotFromApi()`, whose handlers walk
-  // `s.subagents.length`, `s.children`, `s.totalInputTokens`, etc.; (2) the web
-  // dashboard's `useAgentSnapshot()` hook, whose `AgentSession` TS type is the
-  // raw `collectors/types.ts` shape. Earlier versions ran sessions through
-  // `sessionSummary()` here, which collapsed `subagents` → `subagentCount` and
-  // `tokens.input` etc. — silently breaking both consumers (the web limped
-  // along on `?? 0` guards; the MCP crashed on the missing arrays). The slim
-  // summary shape lives on `/sessions` for the CLI's table view.
+  // Returns the raw `CollectorSnapshot` enriched with `isWaymarkControlled`
+  // per session and `category`/`isPublic` on orphan ports. Two consumers depend
+  // on this: (1) the MCP process's `fetchSnapshotFromApi()`; (2) the web
+  // dashboard's `useAgentSnapshot()` hook.
   router.get('/snapshot', (_req: Request, res: Response) => {
     const snapshot = getSnapshot();
+    persistDeadSessions(snapshot);
+
+    const bindings = getPortBindings();
+
+    const sessions = snapshot.sessions.map((s) => ({
+      ...s,
+      isWaymarkControlled: isSessionWaymarkControlled(s.sessionId),
+    }));
+
+    const orphanPorts = snapshot.orphanPorts.map((o) => {
+      const lsofName = bindings.get(o.port) ?? '';
+      return {
+        ...o,
+        category: classifyPort(o.port),
+        isPublic: lsofName ? isPublicBinding(lsofName) : false,
+      };
+    });
+
     res.json({
-      sessions: snapshot.sessions,
+      sessions,
       rateLimits: snapshot.rateLimits,
-      orphanPorts: snapshot.orphanPorts,
+      orphanPorts,
       collectedAt: snapshot.collectedAt,
     });
+  });
+
+  // ── DELETE /ports/:pid ─────────────────────────────────────────────────────
+  router.delete('/ports/:pid', (req: Request, res: Response) => {
+    const pid = parseInt(req.params['pid'] ?? '', 10);
+    if (isNaN(pid) || pid <= 0) {
+      res.status(400).json({ error: 'Invalid PID' });
+      return;
+    }
+    try {
+      process.kill(pid, 'SIGTERM');
+      setTimeout(() => {
+        try { process.kill(pid, 'SIGKILL'); } catch { /* already dead */ }
+      }, 2000);
+      res.json({ success: true, pid });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // ── GET /history ───────────────────────────────────────────────────────────
+  router.get('/history', (req: Request, res: Response) => {
+    const limit = Math.min(parseInt(req.query['limit'] as string ?? '100', 10) || 100, 500);
+    const agent = req.query['agent'] as string | undefined;
+    const project = req.query['project'] as string | undefined;
+
+    const rows = getAgentHistory({ limit, agentCli: agent, projectName: project });
+    const history = rows.map((r) => ({
+      sessionId: r.session_id,
+      agentCli: r.agent_cli,
+      pid: r.pid,
+      cwd: r.cwd,
+      projectName: r.project_name,
+      startedAt: r.started_at,
+      endedAt: r.ended_at,
+      finalStatus: r.final_status,
+      totalInputTokens: r.total_input_tokens,
+      totalOutputTokens: r.total_output_tokens,
+      turnCount: r.turn_count,
+      compactionCount: r.compaction_count,
+      model: r.model,
+      gitBranch: r.git_branch,
+      initialPrompt: r.initial_prompt,
+      waymarkControlled: r.waymark_controlled === 1,
+    }));
+    res.json({ history, total: history.length });
   });
 
   return router;

@@ -2,6 +2,20 @@ import type { AgentSession } from '@/api/types';
 import { cn } from '@/lib/format';
 import { usePauseAgentSession, useResumeAgentSession } from '@/api/hooks';
 
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  const pts = data.slice(-20);
+  if (pts.length < 2) return null;
+  const max = Math.max(...pts, 1);
+  const coords = pts.map((v, i) =>
+    `${(i / (pts.length - 1)) * 58},${18 - (v / max) * 16}`
+  ).join(' ');
+  return (
+    <svg width="60" height="20" className="sparkline" aria-hidden="true">
+      <polyline points={coords} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function ageStr(ms: number): string {
   const secs = Math.floor((Date.now() - ms) / 1000);
   if (secs < 60) return `${secs}s`;
@@ -45,6 +59,19 @@ export function SessionCard({ session, selected, onClick }: Props) {
   const resume = useResumeAgentSession();
   const isActive = session.status === 'thinking' || session.status === 'executing' || session.status === 'running';
 
+  // Sparkline data
+  const tokenHistory = session.tokenHistory ?? [];
+  const ctxHistory = session.contextHistory ?? [];
+  const ctxWindow = session.contextWindow || 200_000;
+  const ctxPctHistory = ctxHistory.map((t) => Math.round((t / ctxWindow) * 100));
+  const lastCtxPct = ctxPctHistory[ctxPctHistory.length - 1] ?? 0;
+  const ctxColor = lastCtxPct >= 85 ? 'var(--err)' : lastCtxPct >= 60 ? 'var(--warn)' : 'var(--ok)';
+
+  // Token burn rate (tokens added in last turn)
+  const burnRate = tokenHistory.length >= 2
+    ? tokenHistory[tokenHistory.length - 1] - tokenHistory[tokenHistory.length - 2]
+    : 0;
+
   return (
     <div
       className={cn('session-card', selected && 'selected')}
@@ -57,6 +84,9 @@ export function SessionCard({ session, selected, onClick }: Props) {
       <div className="session-card-header">
         <span className={cn('badge', statusClass(session.status))}>{session.status}</span>
         <span className="session-agent">{session.agentCli}</span>
+        {session.isWaymarkControlled && (
+          <span className="badge badge-waymark" title="Tool calls intercepted by Waymark policy">⬡ W</span>
+        )}
         <span className="session-pid">PID {session.pid}</span>
         <span className="session-age">{ageStr(session.startedAt)}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }} onClick={(e) => e.stopPropagation()}>
@@ -98,11 +128,20 @@ export function SessionCard({ session, selected, onClick }: Props) {
             />
           </div>
           <div className="metric-value">{Math.round(session.contextPercent)}%</div>
+          {ctxPctHistory.length >= 2 && (
+            <Sparkline data={ctxPctHistory} color={ctxColor} />
+          )}
         </div>
 
         <div className="metric-item">
           <div className="metric-label">Tokens</div>
-          <div className="metric-value">{fmtTokens(totalTokens)}</div>
+          <div className="metric-value">
+            {fmtTokens(totalTokens)}
+            {burnRate > 0 && <span className="burn-rate">+{fmtTokens(burnRate)}/turn</span>}
+          </div>
+          {tokenHistory.length >= 2 && (
+            <Sparkline data={tokenHistory} color="var(--acc)" />
+          )}
         </div>
 
         <div className="metric-item">

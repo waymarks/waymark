@@ -350,7 +350,7 @@ function parseCodexJSONL(filePath: string): CodexJSONLResult | null {
             result.modelGenerating = true;
             result.thinkingSinceMs = tsMs;
             if (!result.initialPrompt && typeof payload['message'] === 'string') {
-              result.initialPrompt = redactSecrets(payload['message'].slice(0, 120));
+              result.initialPrompt = redactSecrets(payload['message'].slice(0, 2000));
             }
             break;
           }
@@ -482,17 +482,16 @@ function parseCodexToolArg(argumentsStr: string): string {
 
   for (const key of ['file_path', 'path']) {
     if (typeof val[key] === 'string') {
-      const short = (val[key] as string).split('/').pop() ?? val[key] as string;
-      return redactSecrets(short).slice(0, 120);
+      return redactSecrets(val[key] as string).slice(0, 2000);
     }
   }
   for (const key of ['cmd', 'command', 'chars', 'target', 'session_id']) {
     const raw = val[key];
-    if (typeof raw === 'string') return redactSecrets(raw).slice(0, 120);
-    if (typeof raw === 'number' || typeof raw === 'boolean') return String(raw).slice(0, 120);
+    if (typeof raw === 'string') return redactSecrets(raw).slice(0, 2000);
+    if (typeof raw === 'number' || typeof raw === 'boolean') return String(raw).slice(0, 2000);
   }
   for (const v of Object.values(val)) {
-    if (typeof v === 'string' && v.length > 0) return redactSecrets(v).slice(0, 120);
+    if (typeof v === 'string' && v.length > 0) return redactSecrets(v).slice(0, 2000);
   }
   return '';
 }

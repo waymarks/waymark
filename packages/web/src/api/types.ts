@@ -223,6 +223,7 @@ export interface AgentSession {
   pendingSinceMs: number;
   thinkingSinceMs: number;
   fileAccesses: Array<{ path: string; operation: string; turnIndex: number }>;
+  isWaymarkControlled?: boolean;
 }
 
 export interface AgentRateLimitInfo {
@@ -242,6 +243,8 @@ export interface AgentPortEntry {
   command: string;
   sessionId: string;
   agentCli: string;
+  isPublic?: boolean;
+  category?: string;
 }
 
 export interface OrphanPortEntry {
@@ -249,6 +252,32 @@ export interface OrphanPortEntry {
   pid: number;
   command: string;
   projectName: string;
+  isPublic?: boolean;
+  category?: string;
+}
+
+export interface AgentHistoryEntry {
+  sessionId: string;
+  agentCli: string;
+  pid?: number;
+  cwd?: string;
+  projectName?: string;
+  startedAt?: number;
+  endedAt?: number;
+  finalStatus?: string;
+  totalInputTokens?: number;
+  totalOutputTokens?: number;
+  turnCount?: number;
+  compactionCount?: number;
+  model?: string;
+  gitBranch?: string;
+  initialPrompt?: string;
+  waymarkControlled?: boolean;
+}
+
+export interface AgentHistoryResponse {
+  history: AgentHistoryEntry[];
+  total: number;
 }
 
 export interface AgentPortsResponse {

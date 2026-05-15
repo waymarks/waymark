@@ -31,7 +31,8 @@ async function render(port: number): Promise<void> {
     for (const s of sessions) {
       const ctx = `ctx:${Math.round(s.contextPercent ?? 0)}%`;
       const ctxWarn = (s.contextPercent ?? 0) >= 85 ? ' ⚠' : '';
-      console.log(`  ${(s.agentCli ?? 'agent').padEnd(12)} ${(s.status ?? '').padEnd(14)} ${ctx}${ctxWarn}`);
+      const wBadge = s.isWaymarkControlled ? '[W] ' : '    ';
+      console.log(`  ${wBadge}${(s.agentCli ?? 'agent').padEnd(12)} ${(s.status ?? '').padEnd(14)} ${ctx}${ctxWarn}`);
     }
   }
 

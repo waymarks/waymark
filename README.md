@@ -63,6 +63,22 @@ See [CHANGELOG](CHANGELOG.md) for the full entry with all 7 phases and bug fixes
 
 ---
 
+## ✨ What's New — Agent Monitor Overhaul
+
+**Complete rebuild of the Agent Monitor dashboard (`/agents` route), CLI commands, and server-side collection.**
+
+- **Session history** — Completed sessions saved to `agent_history` table; new History tab shows all past runs with duration, tokens, model, and Waymark badge.
+- **Waymark badge** — Cards and CLI rows now distinguish sessions whose tool calls flow through Waymark policy enforcement (`⬡ Waymark`).
+- **Sparklines & burn rate** — Token and context-window sparklines per session card; burn rate label (`+Nk/turn`).
+- **Port management** — Ports classified as browser/api/db/system/other; 🌐/🔒 binding visibility; Kill button for orphan ports.
+- **Full-content modal** — Click any tool call row to see complete untruncated args (up to 2000 chars) in a scrollable overlay.
+- **Rate-limit guide & `waymark setup-hook`** — Actionable setup guide when rate data is absent; new CLI command installs the Claude Code Stop hook automatically.
+- **Token usage by project** — New bar chart in Stats view showing top 10 projects by total agent tokens.
+
+See [CHANGELOG](CHANGELOG.md) for full details.
+
+---
+
 ## ✨ What's New in v4.3.2
 
 **Bug fix: Approvals inbox now shows all pending actions**

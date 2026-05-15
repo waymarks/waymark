@@ -446,6 +446,27 @@ export function usePauseAgentSession() {
   });
 }
 
+export function useAgentHistory(params?: { limit?: number; agent?: string; project?: string }) {
+  return useQuery({
+    queryKey: ['agent-history', params],
+    queryFn: () => api.getAgentHistory(params),
+    refetchInterval: 10_000,
+  });
+}
+
+export function useKillOrphanPort() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (pid: number) => api.killOrphanPort(pid),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agent-snapshot'] });
+      toast.push({ tone: 'ok', message: 'Process terminated.' });
+    },
+    onError: (err: Error) => toast.push({ tone: 'err', message: err.message }),
+  });
+}
+
 export function useResumeAgentSession() {
   const qc = useQueryClient();
   const toast = useToast();

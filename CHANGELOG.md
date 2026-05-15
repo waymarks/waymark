@@ -1,12 +1,24 @@
-## [4.7.0] — 2026-05-15
+## [4.8.0] — 2026-05-15
 
 ### Added
-- wire engines, extend policy, add UX improvements and new features
 
-### Fixed
-- update project path in command for hook configuration
+- **Session history** — Completed agent sessions are persisted to `agent_history` SQLite table and shown in a new History tab (Agent / Project / Duration / Tokens / Turns / Model / Waymark / Ended).
+- **Waymark-controlled badge** — Sessions intercepted by Waymark policy enforcement display a `⬡ Waymark` badge in the dashboard and CLI (`waymark agents`, `waymark watch`).
+- **Live sparklines & burn rate** — Token and context-window sparklines (inline SVG) on each session card. Context colors by pressure; burn rate label (`+Nk/turn`).
+- **Port categorization & kill** — Ports classified as browser/api/db/system/other. 🌐/🔒 binding visibility. Kill button for orphan ports (SIGTERM + SIGKILL after 2 s).
+- **Full-content detail modal** — Click any tool call row to see untruncated args (up to 2000 chars) in a scrollable overlay. Session detail panel is now scrollable and capped at 320px height.
+- **SSE real-time invalidation** — `'agents'` topic on the SSE bus: session death events immediately refresh snapshot and history caches.
+- **Rate-limit setup guide** — Actionable two-step guide replaces bare "install hook" text when rate-limit data is absent.
+- **`waymark setup-hook`** — CLI command that installs a Claude Code `Stop` hook, writes `~/.claude/abtop-rate-limits.json` after each agent response, and registers itself in `~/.claude/settings.json` non-destructively.
+- **Stats: Token usage by project** — New bar chart at the bottom of the Stats view showing top 10 projects by cumulative agent token consumption.
+
+### Changed
+
+- Tool call arg truncation raised 120 → 2000 characters; full file paths returned (not basename) in both Claude and Codex collectors.
+- `initialPrompt` capture limit raised 120 → 2000 characters.
 
 ---
+
 ## [4.7.0] — 2026-05-15
 
 Major feature release: remediation engine wired, policy engine extensions, new CLI commands (`waymark explain`, `waymark watch`), bash approval queue, dashboard policy editor, selective session rollback, agent pause/resume, audit export, and analytics summary.

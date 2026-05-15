@@ -247,6 +247,30 @@ function initializeSchema(database: Database.Database): void {
   try { database.exec('CREATE INDEX IF NOT EXISTS idx_escalation_requests_status ON escalation_requests(status)'); } catch {}
   try { database.exec('CREATE INDEX IF NOT EXISTS idx_escalation_decisions_request ON escalation_decisions(escalation_request_id)'); } catch {}
   try { database.exec('CREATE INDEX IF NOT EXISTS idx_escalation_decisions_target ON escalation_decisions(target_id)'); } catch {}
+
+  // Agent Monitor: persist completed agent sessions for history view
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS agent_history (
+      session_id          TEXT PRIMARY KEY,
+      agent_cli           TEXT NOT NULL,
+      pid                 INTEGER,
+      cwd                 TEXT,
+      project_name        TEXT,
+      started_at          INTEGER,
+      ended_at            INTEGER,
+      final_status        TEXT,
+      total_input_tokens  INTEGER DEFAULT 0,
+      total_output_tokens INTEGER DEFAULT 0,
+      turn_count          INTEGER DEFAULT 0,
+      compaction_count    INTEGER DEFAULT 0,
+      model               TEXT,
+      git_branch          TEXT,
+      initial_prompt      TEXT,
+      waymark_controlled  INTEGER DEFAULT 0
+    )
+  `);
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_agent_history_ended ON agent_history(ended_at DESC)'); } catch {}
+  try { database.exec('CREATE INDEX IF NOT EXISTS idx_agent_history_cli ON agent_history(agent_cli)'); } catch {}
 }
 
 function getDb(): Database.Database {
@@ -1206,6 +1230,72 @@ export function getAvgApprovalLatencyMinutes(): number | null {
     WHERE approved_at IS NOT NULL AND created_at IS NOT NULL
   `).get() as { avg_minutes: number | null } | undefined;
   return row?.avg_minutes ?? null;
+}
+
+// ─── Agent History ─────────────────────────────────────────────────────────────
+
+export interface AgentHistoryRow {
+  session_id: string;
+  agent_cli: string;
+  pid: number | null;
+  cwd: string | null;
+  project_name: string | null;
+  started_at: number | null;
+  ended_at: number | null;
+  final_status: string | null;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  turn_count: number;
+  compaction_count: number;
+  model: string | null;
+  git_branch: string | null;
+  initial_prompt: string | null;
+  waymark_controlled: number;
+}
+
+export function agentHistoryExists(sessionId: string): boolean {
+  return !!getDb().prepare('SELECT 1 FROM agent_history WHERE session_id = ? LIMIT 1').get(sessionId);
+}
+
+export function insertAgentHistory(row: AgentHistoryRow): void {
+  getDb().prepare(`
+    INSERT OR IGNORE INTO agent_history
+      (session_id, agent_cli, pid, cwd, project_name, started_at, ended_at,
+       final_status, total_input_tokens, total_output_tokens, turn_count,
+       compaction_count, model, git_branch, initial_prompt, waymark_controlled)
+    VALUES
+      (@session_id, @agent_cli, @pid, @cwd, @project_name, @started_at, @ended_at,
+       @final_status, @total_input_tokens, @total_output_tokens, @turn_count,
+       @compaction_count, @model, @git_branch, @initial_prompt, @waymark_controlled)
+  `).run(row);
+}
+
+export function getAgentHistory(opts: {
+  limit?: number;
+  agentCli?: string;
+  projectName?: string;
+}): AgentHistoryRow[] {
+  const { limit = 100, agentCli, projectName } = opts;
+  const conditions: string[] = [];
+  const params: Record<string, unknown> = { limit };
+  if (agentCli && agentCli !== 'all') {
+    conditions.push('agent_cli = @agentCli');
+    params['agentCli'] = agentCli;
+  }
+  if (projectName) {
+    conditions.push('project_name LIKE @projectName');
+    params['projectName'] = `%${projectName}%`;
+  }
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  return getDb().prepare(`
+    SELECT * FROM agent_history ${where} ORDER BY ended_at DESC LIMIT @limit
+  `).all(params) as AgentHistoryRow[];
+}
+
+export function isSessionWaymarkControlled(sessionId: string): boolean {
+  return !!getDb().prepare(
+    'SELECT 1 FROM action_log WHERE session_id = ? LIMIT 1'
+  ).get(sessionId);
 }
 
 export default db;

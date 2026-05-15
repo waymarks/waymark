@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useActions, useStats } from '@/api/hooks';
+import { useActions, useStats, useAgentHistory } from '@/api/hooks';
 import { Icon, type IconName } from '@/components/Icon';
 import { compressPath, parseServerDate } from '@/lib/format';
 
@@ -11,6 +11,7 @@ const BUCKET_MS = 10 * 60 * 1000; // 10 minutes → last 5 hours
 export function StatsView() {
   const { data: stats, isLoading, isError, error } = useStats();
   const { data: actions = [] } = useActions();
+  const { data: historyData } = useAgentHistory({ limit: 500 });
 
   const buckets = useMemo<Bucket[]>(() => {
     const now = Date.now();
@@ -138,6 +139,10 @@ export function StatsView() {
               )}
             </div>
           </section>
+
+          {(historyData?.history ?? []).length > 0 && (
+            <AgentTokenChart history={historyData!.history} />
+          )}
         </>
       ) : null}
     </>
@@ -236,6 +241,60 @@ function ByToolChart({ rows }: { rows: Array<{ tool: string; count: number }> })
         );
       })}
     </div>
+  );
+}
+
+import type { AgentHistoryEntry } from '@/api/types';
+
+function AgentTokenChart({ history }: { history: AgentHistoryEntry[] }) {
+  const byProject = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const h of history) {
+      const key = h.projectName || h.cwd || '(unknown)';
+      const tokens = (h.totalInputTokens ?? 0) + (h.totalOutputTokens ?? 0);
+      map.set(key, (map.get(key) ?? 0) + tokens);
+    }
+    return [...map.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10);
+  }, [history]);
+
+  if (byProject.length === 0) return null;
+
+  const maxTokens = byProject[0][1];
+  const fmtT = (n: number) =>
+    n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1_000 ? `${(n / 1_000).toFixed(0)}k` : String(n);
+
+  return (
+    <section className="card" style={{ marginTop: 14 }}>
+      <header className="card-header">
+        <div>
+          <div className="card-title">Agent token usage by project</div>
+          <div className="card-sub">Top 10 projects by total tokens (input + output), from session history</div>
+        </div>
+      </header>
+      <div className="card-body">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {byProject.map(([project, tokens]) => (
+            <div key={project} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12 }}>
+              <span className="mono" style={{ minWidth: 160, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--fg-2)' }}
+                title={project}>
+                {project.split('/').pop() || project}
+              </span>
+              <div style={{ flex: 1, height: 8, background: 'var(--bg-2)', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{
+                  width: `${(tokens / maxTokens) * 100}%`,
+                  height: '100%',
+                  background: 'var(--acc)',
+                  opacity: 0.65,
+                }} />
+              </div>
+              <span className="mono muted" style={{ fontSize: 11, minWidth: 40, textAlign: 'right' }}>{fmtT(tokens)}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 

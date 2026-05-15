@@ -34,6 +34,7 @@ function printHelp(): void {
   console.log('  open                  Open a project dashboard or start it');
   console.log('  explain <id>          Explain a pending or recent action');
   console.log('  watch                 Live terminal view of agents + pending actions');
+  console.log('  setup-hook            Install the StatusLine hook for real-time rate limits');
   console.log('');
   console.log('Top-level flags:');
   console.log('  -v, --version         Print the installed version');
@@ -105,6 +106,9 @@ switch (command) {
     break;
   case 'watch':
     require('./commands/watch').run();
+    break;
+  case 'setup-hook':
+    require('./commands/setup-hook').run();
     break;
   default:
     console.error(`Unknown command: ${command}`);

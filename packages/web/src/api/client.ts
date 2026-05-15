@@ -31,6 +31,7 @@ import type {
   AgentRateLimitsResponse,
   AgentPortsResponse,
   AgentSnapshot,
+  AgentHistoryResponse,
   ApprovalRequest,
   ApprovalRoute,
   EscalationRequest,
@@ -143,6 +144,12 @@ export const api = {
     request<{ success: boolean; action: string; pid: number }>(`/api/agent-monitor/sessions/${encodeURIComponent(sessionId)}/pause`, { method: 'POST' }),
   resumeAgentSession: (sessionId: string) =>
     request<{ success: boolean; action: string; pid: number }>(`/api/agent-monitor/sessions/${encodeURIComponent(sessionId)}/resume`, { method: 'POST' }),
+  getAgentHistory: (params?: { limit?: number; agent?: string; project?: string }) => {
+    const qs = params ? new URLSearchParams(Object.entries(params).filter(([, v]) => v != null).map(([k, v]) => [k, String(v)])).toString() : '';
+    return request<AgentHistoryResponse>(`/api/agent-monitor/history${qs ? '?' + qs : ''}`);
+  },
+  killOrphanPort: (pid: number) =>
+    request<{ success: boolean; pid: number }>(`/api/agent-monitor/ports/${pid}`, { method: 'DELETE' }),
 
   approveAction: (id: string) =>
     request<{ success: boolean }>(`/api/actions/${encodeURIComponent(id)}/approve`, { method: 'POST' }),

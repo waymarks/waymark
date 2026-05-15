@@ -19,6 +19,7 @@ interface AgentSession {
   turnCount: number;
   currentTasks: string[];
   memMb: number;
+  isWaymarkControlled?: boolean;
 }
 
 interface SessionsResponse {
@@ -137,9 +138,10 @@ export async function run(): Promise<void> {
   }
 
   // ── Table output ─────────────────────────────────────────────────────────────
-  const COL = { agent: 8, pid: 7, status: 9, ctx: 7, tokens: 9, task: 32, age: 6 };
+  const COL = { agent: 8, w: 2, pid: 7, status: 9, ctx: 7, tokens: 9, task: 32, age: 6 };
   const header = [
     pad('Agent', COL.agent),
+    pad('W', COL.w),
     pad('PID', COL.pid),
     pad('Status', COL.status),
     pad('Ctx %', COL.ctx),
@@ -159,6 +161,7 @@ export async function run(): Promise<void> {
     const task = s.currentTasks?.[0] ?? '—';
     const row = [
       pad(s.agentCli, COL.agent),
+      pad(s.isWaymarkControlled ? 'W' : '', COL.w),
       pad(String(s.pid), COL.pid),
       `${statusIcon(s.status)} ${pad(s.status, COL.status - 2)}`,
       pad(`${Math.round(s.contextPercent)}%`, COL.ctx),
