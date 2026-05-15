@@ -8,7 +8,8 @@ export type EventTopic =
   | 'team'
   | 'approval-routes'
   | 'escalation-rules'
-  | 'config';
+  | 'config'
+  | 'risk';
 
 interface Subscriber {
   res: Response;

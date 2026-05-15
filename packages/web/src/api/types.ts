@@ -101,6 +101,8 @@ export interface PolicyConfig {
     blockedPaths?: string[];
     requireApproval?: string[];
     blockedCommands?: string[];
+    requireApprovalBash?: string[];
+    allowedCommands?: string[];
     maxBashOutputBytes?: number;
   };
 }

@@ -20,7 +20,7 @@ function printHelp(): void {
   console.log('Usage: waymark <command> [options]   (also: way_marks, npx @way_marks/cli)');
   console.log('');
   console.log('Commands:');
-  console.log('  init                  Set up Waymark in the current project');
+  console.log('  init [--dry-run]      Set up Waymark in the current project (preview with --dry-run)');
   console.log('  start [--port <n>]    Start the Waymark dashboard and MCP server');
   console.log('  stop                  Stop the running Waymark servers');
   console.log('  pause                 Pause a project (keep port allocated)');
@@ -32,6 +32,8 @@ function printHelp(): void {
   console.log('  agents                List running AI agent sessions');
   console.log('  list                  List all registered Waymark projects');
   console.log('  open                  Open a project dashboard or start it');
+  console.log('  explain <id>          Explain a pending or recent action');
+  console.log('  watch                 Live terminal view of agents + pending actions');
   console.log('');
   console.log('Top-level flags:');
   console.log('  -v, --version         Print the installed version');
@@ -97,6 +99,12 @@ switch (command) {
     break;
   case 'open':
     require('./commands/open').run();
+    break;
+  case 'explain':
+    require('./commands/explain').run();
+    break;
+  case 'watch':
+    require('./commands/watch').run();
     break;
   default:
     console.error(`Unknown command: ${command}`);

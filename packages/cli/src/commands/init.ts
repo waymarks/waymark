@@ -243,12 +243,18 @@ async function selectPlatforms(): Promise<string[]> {
 }
 
 export async function run(): Promise<void> {
+  const isDryRun = process.argv.includes('--dry-run');
   const projectRoot = process.cwd();
   const projectName = kebabCase(path.basename(projectRoot));
   const mcpKey = `waymark-${projectName}`;
   const dbPath = path.join(projectRoot, '.waymark', 'waymark.db');
 
+  if (isDryRun) {
+    console.log('[dry-run] Previewing init — no files will be written.\n');
+  }
   console.log(`Initializing Waymark in: ${projectRoot}`);
+
+
 
   // Step 1 — Detect project
   const hasPackageJson = fs.existsSync(path.join(projectRoot, 'package.json'));
@@ -259,6 +265,27 @@ export async function run(): Promise<void> {
 
   // Step 1b — Select platforms (NEW in Phase 5)
   const selectedPlatforms = await selectPlatforms();
+
+  // Dry-run: print files that would be created, then exit
+  if (isDryRun) {
+    const configPath = path.join(projectRoot, 'waymark.config.json');
+    console.log('\nFiles that would be created or modified:');
+    console.log(`  ${configPath}`);
+    if (selectedPlatforms.includes('claude')) {
+      console.log(`  ${path.join(projectRoot, 'CLAUDE.md')}`);
+      console.log(`  ${path.join(projectRoot, '.mcp.json')}`);
+      try {
+        console.log(`  ${getClaudeDesktopConfigPath()} (Claude Desktop MCP entry)`);
+      } catch {}
+    }
+    if (selectedPlatforms.includes('copilot-cli')) {
+      console.log(`  ${path.join(projectRoot, 'COPILOT.md')}`);
+      console.log(`  ${getCopilotMcpConfigPath()} (Copilot MCP entry)`);
+    }
+    console.log(`  ${path.join(projectRoot, '.gitignore')} (.waymark/ entry)`);
+    console.log('\n[dry-run] No changes made. Remove --dry-run to proceed.');
+    return;
+  }
 
   // Step 2 — Install @way_marks/server (skip if already resolvable or in monorepo)
   let serverBin: string;

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Icon } from './Icon';
 import { ConfirmModal } from './ConfirmModal';
 import type { ActionRow } from '@/api/types';
-import { useApproveAction, useRejectAction, useRollbackAction } from '@/api/hooks';
+import { useApproveAction, useApproveActionWithEdit, useRejectAction, useRollbackAction, useReplayAction } from '@/api/hooks';
 import { bashCommand, deriveIntent, parseInput, rowState, simpleLineDiff } from '@/lib/format';
 import { useFocusTrap } from '@/lib/focusTrap';
 
@@ -13,10 +13,14 @@ interface Props {
 
 export function Drawer({ action, onClose }: Props) {
   const approve = useApproveAction();
+  const approveEdit = useApproveActionWithEdit();
   const reject = useRejectAction();
   const rollback = useRollbackAction();
+  const replay = useReplayAction();
 
-  const [confirm, setConfirm] = useState<null | 'reject' | 'rollback'>(null);
+  const [confirm, setConfirm] = useState<null | 'reject' | 'rollback' | 'replay'>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editContent, setEditContent] = useState('');
   const drawerRef = useRef<HTMLElement>(null);
   useFocusTrap(drawerRef, !!action && !confirm);
 
@@ -35,10 +39,16 @@ export function Drawer({ action, onClose }: Props) {
   const isPending = action.status === 'pending' && action.decision === 'pending';
   const isWrite = action.tool_name === 'write_file';
   const canRollback = isWrite && !action.rolled_back && state === 'ok' && !action.approved_by;
+  const canReplay = isWrite && !!action.rolled_back;
   const payload = parseInput(action);
   const diff = isWrite ? simpleLineDiff(action.before_snapshot, action.after_snapshot) : [];
 
+  const pendingContent = isWrite ? (parseInput(action) as { content?: string })?.content ?? '' : '';
+
   const onApproveConfirmed = () => approve.mutate(action.action_id, { onSuccess: onClose });
+  const onApproveWithEditConfirmed = () => {
+    approveEdit.mutate({ id: action.action_id, content: editContent }, { onSuccess: () => { setEditMode(false); onClose(); } });
+  };
   const onRejectConfirmed = (reason?: string) => {
     reject.mutate(
       { id: action.action_id, reason: reason || 'Not approved' },
@@ -48,6 +58,10 @@ export function Drawer({ action, onClose }: Props) {
   };
   const onRollbackConfirmed = () => {
     rollback.mutate(action.action_id, { onSuccess: onClose });
+    setConfirm(null);
+  };
+  const onReplayConfirmed = () => {
+    replay.mutate(action.action_id, { onSuccess: onClose });
     setConfirm(null);
   };
 
@@ -119,6 +133,37 @@ export function Drawer({ action, onClose }: Props) {
             </section>
           )}
 
+          {isPending && isWrite && (
+            <section className="drawer-section">
+              <div className="drawer-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                Edit &amp; approve
+                <button
+                  className="btn"
+                  style={{ fontSize: 11, padding: '2px 8px', marginLeft: 'auto' }}
+                  onClick={() => { setEditMode(!editMode); if (!editMode) setEditContent(pendingContent); }}
+                >
+                  {editMode ? 'Cancel edit' : 'Edit content'}
+                </button>
+              </div>
+              {editMode && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 6 }}>
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    style={{ fontFamily: 'var(--font-mono)', fontSize: 12, minHeight: 200, resize: 'vertical', padding: 8, background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 4, color: 'var(--ink-1)' }}
+                  />
+                  <button
+                    className="btn ok btn-lg"
+                    onClick={onApproveWithEditConfirmed}
+                    disabled={approveEdit.isPending}
+                  >
+                    <Icon name="check" size={14} />{approveEdit.isPending ? 'Approving…' : 'Approve with edits'}
+                  </button>
+                </div>
+              )}
+            </section>
+          )}
+
           <section className="drawer-section">
             <div className="drawer-section-title">Payload</div>
             <pre className="code-block">{JSON.stringify(payload, null, 2)}</pre>
@@ -170,6 +215,14 @@ export function Drawer({ action, onClose }: Props) {
             >
               <Icon name="rollback" size={14} />Rollback
             </button>
+          ) : canReplay ? (
+            <button
+              className="btn btn-lg"
+              onClick={() => setConfirm('replay')}
+              disabled={replay.isPending}
+            >
+              <Icon name="check" size={14} />{replay.isPending ? 'Replaying…' : 'Replay write'}
+            </button>
           ) : (
             <span className="muted">No actions available</span>
           )}
@@ -196,6 +249,14 @@ export function Drawer({ action, onClose }: Props) {
         confirmLabel="Roll back"
         onClose={() => setConfirm(null)}
         onConfirm={onRollbackConfirmed}
+      />
+      <ConfirmModal
+        open={confirm === 'replay'}
+        title="Replay this write?"
+        body={<span>The original file content will be written again, creating a new pending action for approval.</span>}
+        confirmLabel="Replay"
+        onClose={() => setConfirm(null)}
+        onConfirm={onReplayConfirmed}
       />
     </>
   );

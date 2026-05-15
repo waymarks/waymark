@@ -6,6 +6,7 @@ import {
   useApproveAction,
   useApproveRequest,
   useDecideEscalation,
+  useEscalationRules,
   usePendingApprovals,
   usePendingEscalations,
   useRejectAction,
@@ -14,6 +15,18 @@ import {
 import type { ActionRow, ApprovalRequest, EscalationRequest } from '@/api/types';
 import { cn, parseServerDate, timeAgo } from '@/lib/format';
 import { useUI } from '@/store/ui';
+
+function useEscalationDeadline(createdAt: string): { label: string; isUrgent: boolean } | null {
+  const { data: rules = [] } = useEscalationRules();
+  if (!rules.length) return null;
+  const timeoutHours = Math.min(...rules.map((r) => r.timeout_hours ?? 24));
+  const deadline = new Date(new Date(createdAt).getTime() + timeoutHours * 3_600_000);
+  const minsLeft = Math.floor((deadline.getTime() - Date.now()) / 60_000);
+  return {
+    label: minsLeft > 0 ? `escalates in ${minsLeft}m` : 'overdue',
+    isUrgent: minsLeft < 60,
+  };
+}
 
 type Tab = 'pending' | 'escalated' | 'history';
 
@@ -173,6 +186,7 @@ function PendingActionCard({ action }: { action: ActionRow }) {
   const approve = useApproveAction();
   const reject = useRejectAction();
   const [modal, setModal] = useState<null | 'approve' | 'reject'>(null);
+  const deadline = useEscalationDeadline(action.created_at);
 
   const label = action.target_path
     ? action.target_path.split('/').slice(-2).join('/')
@@ -186,6 +200,14 @@ function PendingActionCard({ action }: { action: ActionRow }) {
             <span className="policy-chip pending">policy hold</span>
             <span className="mono muted" style={{ fontSize: 11 }}>{action.tool_name}</span>
             <span className="mono muted" style={{ fontSize: 11, marginLeft: 'auto' }}>{timeAgo(action.created_at)}</span>
+            {deadline && (
+              <span
+                className="chip mono"
+                style={{ fontSize: 10.5, color: deadline.isUrgent ? 'var(--err)' : 'var(--pending)', borderColor: deadline.isUrgent ? 'var(--err)' : 'var(--pending)' }}
+              >
+                {deadline.label}
+              </span>
+            )}
           </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
             <div className="card-title" title={action.target_path ?? undefined}>{label}</div>

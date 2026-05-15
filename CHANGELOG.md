@@ -1,7 +1,82 @@
-## [4.6.3] — 2026-05-13
+## [4.7.0] — 2026-05-15
 
 ### Added
-- (No changes detected — review commits and add manually)
+- wire engines, extend policy, add UX improvements and new features
+
+### Fixed
+- update project path in command for hook configuration
+
+---
+## [4.7.0] — 2026-05-15
+
+Major feature release: remediation engine wired, policy engine extensions, new CLI commands (`waymark explain`, `waymark watch`), bash approval queue, dashboard policy editor, selective session rollback, agent pause/resume, audit export, and analytics summary.
+
+### Added
+
+#### Remediation engine — now fully wired
+- `POST /api/remediation/assess` calls `assessRisk()` (score + level + factor breakdown)
+- `POST /api/remediation/evaluate-policy` evaluates sessions against HIPAA, SOC2, PCI-DSS, GDPR
+- `POST /api/remediation/recommend` returns ranked remediation recommendations
+- `GET /api/remediation/blocks` + auto-block evaluation on session rollback
+- SSE `risk` topic for real-time dashboard invalidation
+
+#### Policy engine extensions
+- `requireApprovalBash[]` config key: queue bash commands for human approval (like `requireApproval` but for shell)
+- `allowedCommands[]` config key: explicit bash command allowlist
+- Bash pending-queue in MCP — holds commands without executing, notifies dashboard
+- Approved bash commands execute via `spawnSync` with policy re-check before running
+- `POST /api/policy/test` — test any path or command against active policy
+- `GET /api/policy/hits` — top blocked/approved/pending paths from action log
+- **Policy editor in dashboard** — visual add/remove rules per category with live save
+
+#### New CLI commands
+- `waymark explain <id>` — human-readable action summary (decision, path/command, timestamps)
+- `waymark watch` — terminal live dashboard with ANSI colour, 2-second refresh
+
+#### New API endpoints
+- `GET /api/sessions/:id/diff` — unified patch across all session `write_file` actions
+- `GET /api/audit/export?format=csv|json` — downloadable audit log
+- `POST /api/actions/:id/replay` — re-execute rolled-back writes as new pending action
+- `POST /api/actions/:id/approve-with-edit` — approve with inline content modification
+- `POST /api/sessions/:id/rollback-partial` — selective per-action rollback
+- `GET /api/analytics/summary` — top blocked paths, busiest hours, avg approval latency
+
+#### Dashboard enhancements
+- Agent pause/resume (SIGSTOP/SIGCONT) via SessionCard buttons
+- Hub aggregate pending banner across all running projects
+- Clickable file paths in AgentMonitorView → filtered Actions view
+- Escalation deadline badge (amber/red by urgency) in ApprovalsView
+- Selective session rollback: checkboxes + "Rollback selected (N)" button
+- Policy editor: visual rule manager with live save
+- Context window progress bar (green/amber/red thresholds)
+- Pending count badge in sidebar navigation
+- Browser tab title `Waymark (N pending)` when actions need approval
+- Dark mode auto-detection from system `prefers-color-scheme`
+- Approve-with-edit: Drawer textarea pre-filled with pending file content
+
+#### UX & security
+- Enhanced secret redaction: `npm_`, `dd-api-key=`, `SG.`, `xkeysib-`, `hvs.`, `hz_`, `vercel_` prefixes
+- Config validation warnings on `waymark start` (overlapping paths, invalid regexes)
+- `waymark init --dry-run` — preview files without writing
+
+### Fixed
+- Bash approval re-checks policy before `spawnSync` (prevents stale-approval exploits)
+- Bash approval records `approved_by` / `approved_at` correctly
+- Session rollback evaluates auto-block rules before executing transaction
+- `/api/policy/test` validates `action` param before type-cast
+
+---
+
+## [4.6.3] — 2026-05-13
+
+### Security
+- Patched vite path-traversal vulnerability (affected `<= 6.4.1`): upgraded `vite` to `6.4.2`. The dev server could serve arbitrary `.map` files outside the project root via `../` segments in optimised-dependency URLs; only apps exposing the dev server with `--host` were at risk.
+- Resolved three additional moderate/high advisories (`fast-uri`, `hono`, `ip-address`) via `npm audit fix`.
+
+### Changed
+- Dashboard rebuilt with vite 6.4.2 (new content-hashed asset filenames in `ui-dist/`).
+- Bumped `@vitejs/plugin-react` to `5.2.0` and `vitest` / `@vitest/coverage-v8` / `@vitest/ui` to `3.2.4`.
+- Removed `npm-stats.yml` workflow copy from `release.yml`; the workflow is now pre-committed to the release repo, eliminating the `workflow` scope requirement on `RELEASE_REPO_TOKEN`.
 
 ---
 ## [4.6.2] — 2026-05-13

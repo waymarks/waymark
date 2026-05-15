@@ -318,6 +318,32 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       });
       throw new Error(`Waymark blocked command: ${policyResult.reason} [rule: ${policyResult.matchedRule}]`);
     }
+    if (policyResult.decision === 'pending') {
+      insertAction({
+        action_id, session_id: SESSION_ID, tool_name: 'bash',
+        target_path: null, input_payload, status: 'pending',
+        decision: 'pending', policy_reason: policyResult.reason, matched_rule: policyResult.matchedRule,
+        event_type: 'execution', request_source: requestSource, observation_context: observationContext,
+      });
+      notifyPendingAction({
+        action_id, session_id: SESSION_ID, tool_name: 'bash',
+        target_path: null, input_payload,
+        before_snapshot: null, after_snapshot: null,
+        status: 'pending', error_message: null, stdout: null, stderr: null,
+        rolled_back: 0, rolled_back_at: null,
+        created_at: new Date().toISOString(),
+        decision: 'pending', policy_reason: policyResult.reason, matched_rule: policyResult.matchedRule,
+        approved_at: null, approved_by: null, rejected_at: null, rejected_reason: null,
+        event_type: 'execution', observation_context: null, request_source: 'direct',
+        id: 0,
+      }).catch(() => {});
+      return {
+        content: [{
+          type: 'text',
+          text: `Bash command requires approval.\nAction ID: ${action_id}\nCheck status: GET /api/actions/${action_id}/status\n\nCommand will execute only after a human approves it via the dashboard.`,
+        }],
+      };
+    }
 
     insertAction({
       action_id,

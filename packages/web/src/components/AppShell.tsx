@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Icon, type IconName } from './Icon';
 import { CommandPalette } from './CommandPalette';
@@ -13,8 +13,23 @@ import {
   useSessions,
 } from '@/api/hooks';
 import { cn } from '@/lib/format';
+import { useToast } from './ToastContext';
 
 interface NavEntry { id: string; label: string; icon: IconName; count?: number; attn?: boolean }
+
+function useContextAlerts(sessions: { sessionId: string; agentCli: string; contextPercent: number }[]) {
+  const toast = useToast();
+  const alerted = useRef(new Set<string>());
+  useEffect(() => {
+    for (const s of sessions) {
+      const key = `${s.sessionId}-85`;
+      if (s.contextPercent >= 85 && !alerted.current.has(key)) {
+        alerted.current.add(key);
+        toast.push({ tone: 'info', message: `${s.agentCli} context at ${Math.round(s.contextPercent)}% — consider compacting.` });
+      }
+    }
+  }, [sessions, toast]);
+}
 
 export function AppShell({ children, topbar }: { children: ReactNode; topbar?: ReactNode }) {
   const { theme, density, accent } = useUI();
@@ -26,6 +41,7 @@ export function AppShell({ children, topbar }: { children: ReactNode; topbar?: R
   const { data: hubProjects = {} } = useHubProjects();
   const { data: agentData } = useAgentSessions({ status: 'active' });
   const [paletteOpen, setPaletteOpen] = useState(false);
+  useContextAlerts(agentData?.sessions ?? []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

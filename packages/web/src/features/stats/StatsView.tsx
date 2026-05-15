@@ -44,6 +44,9 @@ export function StatsView() {
         <div className="page-meta">
           {stats && <span>{stats.totalActions} total</span>}
           {stats && <span>{stats.todayCount} today</span>}
+          <a className="btn" href="/api/audit/export?format=csv" download="waymark-audit.csv">
+            <Icon name="doc" size={12} />Export CSV
+          </a>
         </div>
       </div>
 

@@ -25,6 +25,44 @@ https://github.com/user-attachments/assets/5940e42a-e231-4311-8e24-1ea37699662e
 
 ---
 
+## ✨ What's New in v4.7.0
+
+**Major feature release — bash approval queue, new CLI commands, policy editor, dashboard enhancements, and wired remediation engine**
+
+### 🛡️ Policy engine extensions
+- **`requireApprovalBash[]`** — queue bash commands for human approval, just like file writes
+- **`allowedCommands[]`** — explicit bash command allowlist
+- **Policy editor in dashboard** — add/remove rules visually with live save
+- **`POST /api/policy/test`** — test any path/command against active policy
+
+### 🖥️ New CLI commands
+```bash
+waymark explain <id>    # human-readable summary of any logged action
+waymark watch           # live terminal dashboard (ANSI, 2s refresh)
+waymark init --dry-run  # preview init without writing files
+```
+
+### 📊 New API endpoints
+- `GET /api/sessions/:id/diff` — unified patch across all session writes
+- `GET /api/audit/export?format=csv|json` — downloadable audit log
+- `POST /api/actions/:id/approve-with-edit` — approve with inline content changes
+- `POST /api/sessions/:id/rollback-partial` — selective per-action rollback
+- `GET /api/analytics/summary` — top blocked paths, busiest hours, approval latency
+
+### 🎛️ Dashboard enhancements
+- **Agent pause/resume** — SIGSTOP/SIGCONT from SessionCard
+- **Selective session rollback** — checkboxes per write_file + "Rollback selected" button
+- **Escalation deadline badges** — amber/red urgency in Approvals inbox
+- **Approve-with-edit** — edit file content inline before approving
+- Context window progress bar, pending count badge, dark mode auto-detection, tab title badge
+
+### 🔒 Remediation engine (now live)
+Risk scoring, HIPAA/SOC2/PCI/GDPR compliance evaluation, and remediation recommendations are fully wired (were stub responses in v4.6.x).
+
+See [CHANGELOG](CHANGELOG.md) for the full entry with all 7 phases and bug fixes.
+
+---
+
 ## ✨ What's New in v4.3.2
 
 **Bug fix: Approvals inbox now shows all pending actions**

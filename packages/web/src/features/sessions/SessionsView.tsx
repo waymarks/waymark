@@ -3,8 +3,8 @@ import { Icon } from '@/components/Icon';
 import { ActionRow } from '@/components/ActionRow';
 import { Drawer } from '@/components/Drawer';
 import { ConfirmModal } from '@/components/ConfirmModal';
-import { useActions, useRollbackSession } from '@/api/hooks';
-import { cn, parseServerDate, timeAgo } from '@/lib/format';
+import { useActions, useRollbackSession, useRollbackPartial, useSessionDiff } from '@/api/hooks';
+import { cn, parseServerDate, simpleLineDiff, timeAgo } from '@/lib/format';
 import { useUI } from '@/store/ui';
 import type { ActionRow as ActionRowT } from '@/api/types';
 
@@ -26,7 +26,21 @@ export function SessionsView() {
   const { selectedActionId, setSelectedActionId } = useUI();
   const [openSession, setOpenSession] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<string | null>(null);
+  const [confirmPartial, setConfirmPartial] = useState<{ sessionId: string; actionIds: string[] } | null>(null);
+  const [diffSession, setDiffSession] = useState<string | null>(null);
+  const [selectedPerSession, setSelectedPerSession] = useState<Map<string, Set<string>>>(new Map());
   const rollback = useRollbackSession();
+  const rollbackPartial = useRollbackPartial();
+
+  function toggleAction(sessionId: string, actionId: string) {
+    setSelectedPerSession(prev => {
+      const next = new Map(prev);
+      const set = new Set(next.get(sessionId) ?? []);
+      if (set.has(actionId)) set.delete(actionId); else set.add(actionId);
+      next.set(sessionId, set);
+      return next;
+    });
+  }
 
   const aggregates = useMemo<Aggregate[]>(() => {
     const byId = new Map<string, ActionRowT[]>();
@@ -102,6 +116,11 @@ export function SessionsView() {
           {aggregates.map((g) => {
             const isOpen = openSession === g.session_id;
             const canRollback = g.writes > 0 && g.rolledBack < g.total;
+            const selectedSet = selectedPerSession.get(g.session_id) ?? new Set<string>();
+            const selectedWriteIds = [...selectedSet].filter(id => {
+              const r = g.rows.find(row => row.action_id === id);
+              return r?.tool_name === 'write_file' && !r.rolled_back;
+            });
             return (
               <article
                 key={g.session_id}
@@ -139,13 +158,32 @@ export function SessionsView() {
                       <Icon name="chevron" size={12} style={{ transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
                       {isOpen ? 'Hide actions' : 'Show actions'}
                     </button>
+                    {g.writes > 0 && (
+                      <button
+                        className="btn"
+                        onClick={() => setDiffSession(g.session_id)}
+                      >
+                        <Icon name="doc" size={12} />
+                        View diff
+                      </button>
+                    )}
+                    {selectedWriteIds.length > 0 && (
+                      <button
+                        className="btn danger"
+                        disabled={rollbackPartial.isPending}
+                        onClick={() => setConfirmPartial({ sessionId: g.session_id, actionIds: selectedWriteIds })}
+                      >
+                        <Icon name="rollback" size={12} />
+                        Rollback selected ({selectedWriteIds.length})
+                      </button>
+                    )}
                     <button
                       className="btn danger"
                       disabled={!canRollback || rollback.isPending}
                       onClick={() => setConfirm(g.session_id)}
                     >
                       <Icon name="rollback" size={12} />
-                      Rollback
+                      Rollback all
                     </button>
                   </div>
                 </header>
@@ -153,12 +191,24 @@ export function SessionsView() {
                 {isOpen && (
                   <div className="card-body flush">
                     {g.rows.map((r) => (
-                      <ActionRow
-                        key={r.action_id}
-                        row={r}
-                        focused={r.action_id === selectedActionId}
-                        onOpen={(row) => setSelectedActionId(row.action_id)}
-                      />
+                      <div key={r.action_id} style={{ display: 'flex', alignItems: 'center' }}>
+                        {r.tool_name === 'write_file' && !r.rolled_back && (
+                          <label style={{ padding: '0 8px', cursor: 'pointer', flexShrink: 0 }} title="Select for partial rollback">
+                            <input
+                              type="checkbox"
+                              checked={selectedSet.has(r.action_id)}
+                              onChange={() => toggleAction(g.session_id, r.action_id)}
+                            />
+                          </label>
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <ActionRow
+                            row={r}
+                            focused={r.action_id === selectedActionId}
+                            onOpen={(row) => setSelectedActionId(row.action_id)}
+                          />
+                        </div>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -185,8 +235,80 @@ export function SessionsView() {
           setConfirm(null);
         }}
       />
+      <ConfirmModal
+        open={confirmPartial !== null}
+        title={`Roll back ${confirmPartial?.actionIds.length ?? 0} selected action${(confirmPartial?.actionIds.length ?? 0) === 1 ? '' : 's'}?`}
+        body={<span>The selected write_file actions will be restored to their before-snapshots. This cannot be undone.</span>}
+        confirmLabel="Roll back selected"
+        tone="danger"
+        onClose={() => setConfirmPartial(null)}
+        onConfirm={() => {
+          if (confirmPartial) {
+            rollbackPartial.mutate({ sessionId: confirmPartial.sessionId, actionIds: confirmPartial.actionIds });
+            setSelectedPerSession(prev => {
+              const next = new Map(prev);
+              next.delete(confirmPartial.sessionId);
+              return next;
+            });
+          }
+          setConfirmPartial(null);
+        }}
+      />
 
       <Drawer action={selectedAction} onClose={() => setSelectedActionId(null)} />
+      {diffSession && <DiffModal sessionId={diffSession} onClose={() => setDiffSession(null)} />}
+    </>
+  );
+}
+
+function DiffModal({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
+  const { data, isLoading } = useSessionDiff(sessionId);
+  return (
+    <>
+      <div className="scrim" onClick={onClose} aria-hidden />
+      <aside className="drawer" role="dialog" aria-modal="true" aria-label="Session diff" tabIndex={-1}>
+        <div className="drawer-head">
+          <div>
+            <div className="drawer-head-title">Session diff</div>
+            <div className="drawer-head-sub mono">{sessionId}</div>
+          </div>
+          <button className="drawer-close" onClick={onClose} aria-label="Close diff">
+            <Icon name="x" size={16} />
+          </button>
+        </div>
+        <div className="drawer-body">
+          {isLoading && <div className="muted">Loading…</div>}
+          {data && data.patches.length === 0 && <div className="muted">No write_file actions in this session.</div>}
+          {data && data.patches.map((patch, i) => {
+            const diff = simpleLineDiff(patch.before, patch.after);
+            return (
+              <section key={i} className="drawer-section">
+                <div className="drawer-section-title mono" style={{ fontSize: 11, wordBreak: 'break-all' }}>{patch.path}</div>
+                {diff.length === 0 ? (
+                  <div className="muted">No changes.</div>
+                ) : (
+                  <div className="diff">
+                    <div className="diff-hdr"><div>before</div><div>after</div></div>
+                    <div className="diff-body">
+                      <pre>{diff.map((d, j) => (
+                        <span key={j} className={d.t === 'del' ? 'del' : ''}>{d.l}{'\n'}</span>
+                      ))}</pre>
+                      <pre>{diff.map((d, j) => (
+                        <span key={j} className={d.t === 'add' ? 'add' : ''}>{d.r}{'\n'}</span>
+                      ))}</pre>
+                    </div>
+                  </div>
+                )}
+              </section>
+            );
+          })}
+        </div>
+        <div className="drawer-foot">
+          {data && <span className="muted">{data.total_files} file{data.total_files === 1 ? '' : 's'} changed</span>}
+          <div className="spacer" />
+          <button className="btn" onClick={onClose}>Close</button>
+        </div>
+      </aside>
     </>
   );
 }

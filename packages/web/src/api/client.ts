@@ -50,6 +50,11 @@ import type {
 export const api = {
   getActions: () => request<ActionRow[]>('/api/actions'),
   getConfig: () => request<PolicyConfig>('/api/config'),
+  updatePolicies: (body: NonNullable<PolicyConfig['policies']>) =>
+    request<{ success: boolean; policies: NonNullable<PolicyConfig['policies']> }>('/api/config/policies', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
   getSessions: () => request<SessionSummary[]>('/api/sessions'),
   getSessionActions: (sessionId: string) =>
     request<SessionActionsResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/actions`),
@@ -134,9 +139,18 @@ export const api = {
   getAgentRateLimits: () => request<AgentRateLimitsResponse>('/api/agent-monitor/rate-limits'),
   getAgentPorts: () => request<AgentPortsResponse>('/api/agent-monitor/ports'),
   getAgentSnapshot: () => request<AgentSnapshot>('/api/agent-monitor/snapshot'),
+  pauseAgentSession: (sessionId: string) =>
+    request<{ success: boolean; action: string; pid: number }>(`/api/agent-monitor/sessions/${encodeURIComponent(sessionId)}/pause`, { method: 'POST' }),
+  resumeAgentSession: (sessionId: string) =>
+    request<{ success: boolean; action: string; pid: number }>(`/api/agent-monitor/sessions/${encodeURIComponent(sessionId)}/resume`, { method: 'POST' }),
 
   approveAction: (id: string) =>
     request<{ success: boolean }>(`/api/actions/${encodeURIComponent(id)}/approve`, { method: 'POST' }),
+  approveActionWithEdit: (id: string, content: string) =>
+    request<{ success: boolean }>(`/api/actions/${encodeURIComponent(id)}/approve-with-edit`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
   rejectAction: (id: string, reason: string) =>
     request<{ success: boolean }>(`/api/actions/${encodeURIComponent(id)}/reject`, {
       method: 'POST',
@@ -146,6 +160,13 @@ export const api = {
     request<{ success: boolean }>(`/api/actions/${encodeURIComponent(id)}/rollback`, { method: 'POST' }),
   rollbackSession: (id: string) =>
     request<SessionRollbackResponse>(`/api/sessions/${encodeURIComponent(id)}/rollback`, { method: 'POST' }),
+  rollbackPartial: (sessionId: string, actionIds: string[]) =>
+    request<{ success: boolean; actions_rolled_back: number; restored: string[]; errors?: string[] }>(
+      `/api/sessions/${encodeURIComponent(sessionId)}/rollback-partial`,
+      { method: 'POST', body: JSON.stringify({ action_ids: actionIds }) }
+    ),
+  getAnalyticsSummary: () =>
+    request<{ top_blocked_paths: Array<{ path: string; hits: number }>; busiest_hours: Array<{ hour: string; count: number }>; avg_approval_latency_minutes: number | null; policy_accuracy: { false_positives: number; true_positives: number } }>('/api/analytics/summary'),
 
   getPendingApprovals: () => request<ApprovalRequest[]>('/api/approvals/pending'),
   approveRequest: (requestId: string, approverId: string, reason?: string) =>
@@ -170,4 +191,24 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ target_id: targetId, decision, reason }),
     }),
+
+  getSessionDiff: (sessionId: string) =>
+    request<{ session_id: string; patches: Array<{ path: string; before: string; after: string; action_id: string; created_at: string }>; total_files: number }>(
+      `/api/sessions/${encodeURIComponent(sessionId)}/diff`
+    ),
+
+  replayAction: (actionId: string) =>
+    request<{ success: boolean; original_action_id: string; new_action_id: string }>(
+      `/api/actions/${encodeURIComponent(actionId)}/replay`,
+      { method: 'POST' }
+    ),
+
+  testPolicy: (body: { path?: string; command?: string; action?: 'read' | 'write' }) =>
+    request<{ input: string; resolved?: string; decision: string; reason: string; matchedRule: string }>(
+      '/api/policy/test',
+      { method: 'POST', body: JSON.stringify(body) }
+    ),
+
+  getPolicyHits: () =>
+    request<Array<{ rule: string; hits: number }>>('/api/policy/hits'),
 };

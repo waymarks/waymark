@@ -1,5 +1,6 @@
 import type { AgentSession } from '@/api/types';
 import { cn } from '@/lib/format';
+import { usePauseAgentSession, useResumeAgentSession } from '@/api/hooks';
 
 function ageStr(ms: number): string {
   const secs = Math.floor((Date.now() - ms) / 1000);
@@ -40,6 +41,9 @@ interface Props {
 export function SessionCard({ session, selected, onClick }: Props) {
   const totalTokens = (session.totalInputTokens ?? 0) + (session.totalOutputTokens ?? 0);
   const task = session.currentTasks?.[0] ?? null;
+  const pause = usePauseAgentSession();
+  const resume = useResumeAgentSession();
+  const isActive = session.status === 'thinking' || session.status === 'executing' || session.status === 'running';
 
   return (
     <div
@@ -55,6 +59,29 @@ export function SessionCard({ session, selected, onClick }: Props) {
         <span className="session-agent">{session.agentCli}</span>
         <span className="session-pid">PID {session.pid}</span>
         <span className="session-age">{ageStr(session.startedAt)}</span>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }} onClick={(e) => e.stopPropagation()}>
+          {isActive ? (
+            <button
+              className="btn"
+              style={{ fontSize: 10, padding: '2px 7px' }}
+              disabled={pause.isPending}
+              onClick={() => pause.mutate(session.sessionId)}
+              title="Pause agent (SIGSTOP)"
+            >
+              Pause
+            </button>
+          ) : (
+            <button
+              className="btn ok"
+              style={{ fontSize: 10, padding: '2px 7px' }}
+              disabled={resume.isPending}
+              onClick={() => resume.mutate(session.sessionId)}
+              title="Resume agent (SIGCONT)"
+            >
+              Resume
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="session-project">{session.projectName || session.cwd}</div>

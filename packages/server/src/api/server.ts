@@ -2,16 +2,20 @@ import 'dotenv/config';
 import express from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
-import { getActions, getAction, markRolledBack, getSessions, getPendingCount, getActionsWithFiltering, archiveOldActions, getSummaryStats, ActionFilter, insertAction, getSession, getSessionActions, createSession, SessionRow, addTeamMember, getTeamMember, getAllTeamMembers, removeTeamMember, addApprovalRoute, getApprovalRoute, getAllApprovalRoutes, updateApprovalRoute, deleteApprovalRoute, createApprovalRequest, getApprovalRequest, getPendingApprovals, submitApprovalDecision as dbSubmitApprovalDecision, getSessionApprovalRequests, addEscalationRule, getEscalationRule, getAllEscalationRules, updateEscalationRule, deleteEscalationRule, getPendingEscalations, getEscalationRequest, getEscalationHistory } from '../db/database';
+import { getActions, getAction, markRolledBack, getSessions, getPendingCount, getActionsWithFiltering, archiveOldActions, getSummaryStats, ActionFilter, insertAction, getSession, getSessionActions, createSession, SessionRow, addTeamMember, getTeamMember, getAllTeamMembers, removeTeamMember, addApprovalRoute, getApprovalRoute, getAllApprovalRoutes, updateApprovalRoute, deleteApprovalRoute, createApprovalRequest, getApprovalRequest, getPendingApprovals, submitApprovalDecision as dbSubmitApprovalDecision, getSessionApprovalRequests, addEscalationRule, getEscalationRule, getAllEscalationRules, updateEscalationRule, deleteEscalationRule, getPendingEscalations, getEscalationRequest, getEscalationHistory, getRuleHitCounts, getTopBlockedPaths, getActionsByHour, getAvgApprovalLatencyMinutes } from '../db/database';
 import { rollbackSession as rollbackSessionManager, validateRollbackable, createRollbackTransaction, executeRollbackTransaction } from '../rollback/manager';
-import { loadConfig } from '../policies/engine';
-import { approvePendingAction, rejectPendingAction } from '../approvals/handler';
+import { loadConfig, checkFileAction, checkBashAction } from '../policies/engine';
+import { approvePendingAction, rejectPendingAction, approveWithEdit } from '../approvals/handler';
 import { determineRequiredApprovers, createApprovalRequestForSession, submitApprovalDecision, getApprovalStatus, canProceedWithRollback } from '../approval/manager';
 import { submitEscalationDecision as submitEscalationDecisionManager, getEscalationStatus, canProceedWithRollbackAfterEscalation, getEscalationHistoryForSession } from '../escalation/manager';
 import { attachSubscriber, emit } from './events';
 import { MultiCollector } from '../collectors/multi-collector';
 import { createAgentMonitorRouter } from './routes/agent-monitor';
 import { getVersionInfo } from '../services/version';
+import { assessRisk } from '../risk/analyzer';
+import { evaluatePolicies, getDefaultCompliancePolicies } from '../policy/engine';
+import { getRemediations } from '../remediation/recommender';
+import { evaluateAutoBlock, createBlock, unblockSession, getDefaultBlockRules, RemediationBlock } from '../rollback/blocker';
 
 // Import registry for Phase 2 hub navigation
 const registryPath = path.join(process.env.HOME || process.env.USERPROFILE || '', '.waymark', 'registry.json');
@@ -111,6 +115,23 @@ const app = express();
 // Fallback only — `waymark start` always passes WAYMARK_PORT explicitly.
 // 47000 is the new default range (47000-47999); 3001 was the legacy default.
 const PORT = parseInt(process.env.WAYMARK_PORT || '47000', 10);
+
+// In-memory block store (Phase 1). Replaced by DB persistence in Phase 7.
+const activeBlocks = new Map<string, RemediationBlock>();
+
+// Adapt SessionRow + actions to the Session shape expected by the engine modules.
+import type { Session as RiskSession, Action as RiskAction } from '../risk/analyzer';
+function toRiskSession(row: SessionRow, actions: ReturnType<typeof getSessionActions>): RiskSession {
+  const toolNames = [...new Set(actions.map((a: any) => a.tool_name as string))];
+  return {
+    session_id: row.session_id,
+    created_at: row.created_at,
+    action_count: actions.length,
+    tool_names: toolNames,
+    latest: actions.length > 0 ? (actions[actions.length - 1] as any).created_at : undefined,
+    status: row.status,
+  };
+}
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -257,6 +278,23 @@ app.post('/api/actions/:action_id/approve', async (req, res) => {
     const result = await approvePendingAction(req.params.action_id, 'ui');
     if (!result.success) {
       const status = result.error === 'Action not found' ? 404 : 400;
+      return res.status(status).json({ error: result.error });
+    }
+    emit('actions', { action_id: req.params.action_id, kind: 'approved' });
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/actions/:action_id/approve-with-edit
+app.post('/api/actions/:action_id/approve-with-edit', async (req, res) => {
+  try {
+    const { content, approved_by } = req.body as { content: string; approved_by?: string };
+    if (typeof content !== 'string') return res.status(400).json({ error: 'content is required' });
+    const result = await approveWithEdit(req.params.action_id, content, approved_by || 'ui');
+    if (!result.success) {
+      const status = result.error?.includes('not found') ? 404 : 400;
       return res.status(status).json({ error: result.error });
     }
     emit('actions', { action_id: req.params.action_id, kind: 'approved' });
@@ -465,6 +503,22 @@ app.post('/api/sessions/:session_id/rollback', (req, res) => {
       });
     }
 
+    // Evaluate auto-block before executing rollback
+    const riskSession = toRiskSession(session, actions);
+    const riskAssessment = assessRisk(riskSession, actions as RiskAction[]);
+    const blockResult = evaluateAutoBlock(riskSession, actions as RiskAction[], riskAssessment, [], getDefaultBlockRules());
+    if (blockResult.blocked) {
+      const block = createBlock(session_id, riskAssessment.score, blockResult.reason ?? 'Auto-block triggered');
+      activeBlocks.set(block.block_id, block);
+      emit('sessions', { session_id, kind: 'blocked', block_id: block.block_id });
+      return res.status(403).json({
+        error: 'Session blocked by auto-block policy',
+        reason: blockResult.reason,
+        block_id: block.block_id,
+        risk_score: riskAssessment.score,
+      });
+    }
+
     // Create and execute rollback transaction
     const transaction = createRollbackTransaction(session_id, actions);
     const result = executeRollbackTransaction(transaction);
@@ -483,6 +537,53 @@ app.post('/api/sessions/:session_id/rollback', (req, res) => {
       message: `Rolled back session ${session_id}`,
       actions_rolled_back: actions.length,
       files_restored: result.filesRestored,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/sessions/:session_id/rollback-partial — rollback selected actions only
+app.post('/api/sessions/:session_id/rollback-partial', (req, res) => {
+  try {
+    const { session_id } = req.params;
+    const { action_ids } = req.body as { action_ids?: string[] };
+
+    if (!Array.isArray(action_ids) || action_ids.length === 0) {
+      return res.status(400).json({ error: 'Provide a non-empty action_ids array' });
+    }
+
+    const errors: string[] = [];
+    const restored: string[] = [];
+
+    for (const action_id of action_ids) {
+      const action = getAction(action_id);
+      if (!action) { errors.push(`${action_id}: not found`); continue; }
+      if (action.session_id !== session_id) { errors.push(`${action_id}: belongs to different session`); continue; }
+      if (action.tool_name !== 'write_file') { errors.push(`${action_id}: only write_file can be rolled back`); continue; }
+      if (action.rolled_back) { errors.push(`${action_id}: already rolled back`); continue; }
+      if (!action.target_path) { errors.push(`${action_id}: no target path`); continue; }
+
+      try {
+        if (!action.before_snapshot) {
+          fs.unlinkSync(action.target_path);
+        } else {
+          fs.mkdirSync(path.dirname(action.target_path), { recursive: true });
+          fs.writeFileSync(action.target_path, action.before_snapshot, 'utf8');
+        }
+        markRolledBack(action.action_id);
+        restored.push(action.target_path);
+        emit('actions', { action_id, kind: 'rolled_back' });
+      } catch (e: any) {
+        errors.push(`${action_id}: ${e.message}`);
+      }
+    }
+
+    res.json({
+      success: errors.length === 0,
+      actions_rolled_back: restored.length,
+      restored,
+      errors: errors.length > 0 ? errors : undefined,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
@@ -518,6 +619,27 @@ app.get('/api/sessions/:session_id/status', (req, res) => {
 app.get('/api/config', (req, res) => {
   try {
     res.json(loadConfig());
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/config/policies — write policy arrays back to waymark.config.json
+app.put('/api/config/policies', (req, res) => {
+  try {
+    const projectRoot = process.env.WAYMARK_PROJECT_ROOT || process.cwd();
+    const configPath = path.join(projectRoot, 'waymark.config.json');
+    const current = loadConfig();
+    const patch = req.body as Partial<typeof current.policies>;
+    const allowedKeys = ['allowedPaths', 'blockedPaths', 'requireApproval', 'blockedCommands', 'requireApprovalBash', 'allowedCommands', 'maxBashOutputBytes'] as const;
+    const merged = { ...current.policies };
+    for (const key of allowedKeys) {
+      if (key in patch) (merged as any)[key] = (patch as any)[key];
+    }
+    const updated = { ...current, policies: merged };
+    fs.writeFileSync(configPath, JSON.stringify(updated, null, 2) + '\n');
+    emit('config', { kind: 'updated' });
+    res.json({ success: true, policies: merged });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -1041,17 +1163,9 @@ app.post('/api/remediation/assess', (req, res) => {
 
     const actions = getSessionActions(session_id);
 
-    // Note: In production, would import and use actual Risk Assessment Engine
-    // For now, return placeholder
-    res.json({
-      session_id,
-      action_count: actions.length,
-      risk_assessment: {
-        score: 5.0,
-        level: 'medium',
-        message: 'Risk assessment module available in Phase 4A implementation',
-      },
-    });
+    const assessment = assessRisk(toRiskSession(session, actions), actions as RiskAction[]);
+    emit('risk', { session_id, score: assessment.score, level: assessment.level });
+    res.json({ session_id, ...assessment });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -1071,11 +1185,13 @@ app.post('/api/remediation/evaluate-policy', (req, res) => {
       return res.status(404).json({ error: `Session ${session_id} not found` });
     }
 
-    res.json({
-      session_id,
-      violations: [],
-      message: 'Policy evaluation module available in Phase 4B implementation',
-    });
+    const actions = getSessionActions(session_id);
+    const policyName = req.body.policy_name || 'all';
+    const policies = getDefaultCompliancePolicies().filter(p =>
+      policyName === 'all' || p.name.toUpperCase().includes(policyName.toUpperCase())
+    );
+    const result = evaluatePolicies(toRiskSession(session, actions), actions as RiskAction[], policies);
+    res.json({ session_id, policy_name: policyName, ...result });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -1095,14 +1211,13 @@ app.post('/api/remediation/recommend', (req, res) => {
       return res.status(404).json({ error: `Session ${session_id} not found` });
     }
 
-    res.json({
-      session_id,
-      recommendations: {
-        primary_strategy: 'escalation',
-        alternatives: [],
-        message: 'Remediation recommender available in Phase 4C implementation',
-      },
-    });
+    const actions = getSessionActions(session_id);
+    const riskSession = toRiskSession(session, actions);
+    const assessment = assessRisk(riskSession, actions as RiskAction[]);
+    const compliancePolicies = getDefaultCompliancePolicies();
+    const policyResult = evaluatePolicies(riskSession, actions as RiskAction[], compliancePolicies);
+    const remediation = getRemediations(riskSession, actions as RiskAction[], assessment, policyResult.violations);
+    res.json({ session_id, ...remediation });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -1111,11 +1226,8 @@ app.post('/api/remediation/recommend', (req, res) => {
 // GET /api/remediation/blocks — list blocked sessions
 app.get('/api/remediation/blocks', (req, res) => {
   try {
-    res.json({
-      blocks: [],
-      total: 0,
-      message: 'Auto-block storage available in Phase 4D implementation',
-    });
+    const blocks = [...activeBlocks.values()];
+    res.json({ blocks, total: blocks.length });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -1127,18 +1239,20 @@ app.post('/api/remediation/blocks/:block_id/unblock', (req, res) => {
     const { block_id } = req.params;
     const { reason } = req.body;
 
-    // Check admin role (placeholder)
-    const isAdmin = req.headers['x-user-role'] === 'admin';
+    const isAdmin = req.headers['x-user-role'] === 'admin' || req.headers['x-user-role'] === 'super_admin';
     if (!isAdmin) {
       return res.status(401).json({ error: 'Admin role required to override blocks' });
     }
 
-    res.json({
-      block_id,
-      unblocked: true,
-      unblock_reason: reason,
-      message: 'Block override recorded',
-    });
+    const block = activeBlocks.get(block_id);
+    if (!block) {
+      return res.status(404).json({ error: `Block ${block_id} not found` });
+    }
+
+    const unblockedBy = (req.headers['x-user-id'] as string) || 'admin';
+    const unblocked = unblockSession(block, unblockedBy, reason || 'Manual override');
+    activeBlocks.set(block_id, unblocked);
+    res.json({ unblocked: true, ...unblocked });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
@@ -1207,6 +1321,147 @@ app.delete('/api/remediation/policies/:policy_id', (req, res) => {
     const { policy_id } = req.params;
 
     res.status(204).send();
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================================
+// Phase 4: New Backend Features
+// ============================================================================
+
+// GET /api/sessions/:session_id/diff — unified patch of all write_file actions
+app.get('/api/sessions/:session_id/diff', (req, res) => {
+  try {
+    const { session_id } = req.params;
+    const session = getSession(session_id);
+    if (!session) return res.status(404).json({ error: `Session ${session_id} not found` });
+
+    const actions = getSessionActions(session_id);
+    const patches = actions
+      .filter((a: any) => a.tool_name === 'write_file' && !a.rolled_back)
+      .map((a: any) => ({
+        path: a.target_path,
+        before: a.before_snapshot || '',
+        after: a.after_snapshot || '',
+        action_id: a.action_id,
+        created_at: a.created_at,
+      }));
+    res.json({ session_id, patches, total_files: patches.length });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/audit/export — download audit log as CSV or JSON
+app.get('/api/audit/export', (req, res) => {
+  try {
+    const { format = 'json', status } = req.query;
+    const result = getActionsWithFiltering({
+      status: status as string | undefined,
+      limit: 200,
+    });
+    const rows = result.actions;
+
+    if (format === 'csv') {
+      const headers = ['action_id', 'session_id', 'tool_name', 'target_path', 'status', 'decision', 'policy_reason', 'matched_rule', 'created_at'];
+      const csvRows = rows.map((a: any) =>
+        headers.map(h => JSON.stringify((a as any)[h] ?? '')).join(',')
+      );
+      const csv = [headers.join(','), ...csvRows].join('\n');
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="waymark-audit.csv"');
+      return res.send(csv);
+    }
+
+    res.setHeader('Content-Disposition', 'attachment; filename="waymark-audit.json"');
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/actions/:action_id/replay — re-execute a rolled-back write_file
+app.post('/api/actions/:action_id/replay', async (req, res) => {
+  try {
+    const { action_id } = req.params;
+    const action = getAction(action_id);
+    if (!action) return res.status(404).json({ error: 'Action not found' });
+    if ((action as any).tool_name !== 'write_file') return res.status(400).json({ error: 'Only write_file actions can be replayed' });
+    if (!(action as any).rolled_back) return res.status(400).json({ error: 'Action has not been rolled back' });
+
+    const content = (action as any).after_snapshot;
+    if (!content) return res.status(400).json({ error: 'No content snapshot available' });
+
+    const new_action_id = require('crypto').randomUUID();
+    insertAction({
+      action_id: new_action_id,
+      session_id: (action as any).session_id,
+      tool_name: 'write_file',
+      target_path: (action as any).target_path,
+      input_payload: JSON.stringify({ path: (action as any).target_path, content }),
+      status: 'pending',
+      decision: 'allow',
+      policy_reason: 'Replay of rolled-back action',
+      matched_rule: '(replay)',
+      event_type: 'execution',
+      request_source: 'replay',
+      observation_context: null,
+    });
+
+    const result = await approvePendingAction(new_action_id, req.body.approvedBy || 'replay');
+    emit('actions', { action_id: new_action_id, kind: 'replayed' });
+    res.json({ original_action_id: action_id, new_action_id, ...result });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================================
+// Policy Testing & Telemetry
+// ============================================================================
+
+// POST /api/policy/test — evaluate a hypothetical action against current config
+app.post('/api/policy/test', (req, res) => {
+  try {
+    const { path: filePath, command, action = 'write' } = req.body;
+    if (filePath && !['read', 'write'].includes(action)) {
+      return res.status(400).json({ error: 'action must be "read" or "write"' });
+    }
+    const config = loadConfig();
+    if (filePath) {
+      const resolved = path.resolve(filePath);
+      const result = checkFileAction(resolved, action as 'read' | 'write', config);
+      return res.json({ input: filePath, resolved, ...result });
+    }
+    if (command) {
+      const result = checkBashAction(command, config);
+      return res.json({ input: command, ...result });
+    }
+    res.status(400).json({ error: 'Provide path or command' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/policy/hits — rule hit counts from action_log
+app.get('/api/policy/hits', (req, res) => {
+  try {
+    res.json(getRuleHitCounts());
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/analytics/summary — SQL-aggregated analytics (no ML required)
+app.get('/api/analytics/summary', (_req, res) => {
+  try {
+    res.json({
+      top_blocked_paths: getTopBlockedPaths(10),
+      busiest_hours: getActionsByHour(),
+      avg_approval_latency_minutes: getAvgApprovalLatencyMinutes(),
+      policy_accuracy: { false_positives: 0, true_positives: 0 },
+    });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

@@ -1169,4 +1169,43 @@ export function getEscalationHistory(session_id: string): EscalationRequest[] {
   `).all(session_id) as EscalationRequest[];
 }
 
+export function getRuleHitCounts(): Array<{ rule: string; hits: number }> {
+  return getDb().prepare(`
+    SELECT matched_rule as rule, COUNT(*) as hits
+    FROM action_log
+    WHERE matched_rule IS NOT NULL AND matched_rule != ''
+    GROUP BY matched_rule
+    ORDER BY hits DESC
+  `).all() as Array<{ rule: string; hits: number }>;
+}
+
+export function getTopBlockedPaths(limit: number = 10): Array<{ path: string; hits: number }> {
+  return getDb().prepare(`
+    SELECT target_path as path, COUNT(*) as hits
+    FROM action_log
+    WHERE decision = 'block' AND target_path IS NOT NULL AND target_path != ''
+    GROUP BY target_path
+    ORDER BY hits DESC
+    LIMIT ?
+  `).all(limit) as Array<{ path: string; hits: number }>;
+}
+
+export function getActionsByHour(): Array<{ hour: string; count: number }> {
+  return getDb().prepare(`
+    SELECT strftime('%H', created_at) as hour, COUNT(*) as count
+    FROM action_log
+    GROUP BY hour
+    ORDER BY hour ASC
+  `).all() as Array<{ hour: string; count: number }>;
+}
+
+export function getAvgApprovalLatencyMinutes(): number | null {
+  const row = getDb().prepare(`
+    SELECT AVG((julianday(approved_at) - julianday(created_at)) * 1440) as avg_minutes
+    FROM action_log
+    WHERE approved_at IS NOT NULL AND created_at IS NOT NULL
+  `).get() as { avg_minutes: number | null } | undefined;
+  return row?.avg_minutes ?? null;
+}
+
 export default db;

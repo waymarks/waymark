@@ -25,6 +25,10 @@ export interface WaymarkConfig {
     blockedPaths: string[];
     blockedCommands: string[];
     requireApproval: string[];
+    /** Bash command patterns that queue for human approval rather than execute immediately. */
+    requireApprovalBash?: string[];
+    /** Bash command whitelist. When non-empty, only listed commands are allowed. */
+    allowedCommands?: string[];
     maxBashOutputBytes: number;
   };
 }
@@ -42,6 +46,8 @@ const DEFAULT_CONFIG: WaymarkConfig = {
     blockedPaths: [],
     blockedCommands: [],
     requireApproval: [],
+    requireApprovalBash: [],
+    allowedCommands: [],
     maxBashOutputBytes: 10000,
   },
 };
@@ -60,6 +66,8 @@ export function loadConfig(): WaymarkConfig {
         blockedPaths: parsed.policies.blockedPaths || [],
         blockedCommands: parsed.policies.blockedCommands || [],
         requireApproval: parsed.policies.requireApproval || [],
+        requireApprovalBash: parsed.policies.requireApprovalBash || [],
+        allowedCommands: parsed.policies.allowedCommands || [],
         maxBashOutputBytes: parsed.policies.maxBashOutputBytes ?? 10000,
       },
     };
@@ -146,8 +154,9 @@ function isCommandBlocked(command: string, rule: string): boolean {
 }
 
 export function checkBashAction(command: string, config: WaymarkConfig): PolicyResult {
-  const { blockedCommands } = config.policies;
+  const { blockedCommands, requireApprovalBash = [], allowedCommands = [] } = config.policies;
 
+  // 1. Block rules (highest priority)
   for (const rule of blockedCommands) {
     if (isCommandBlocked(command, rule)) {
       const displayRule = rule.startsWith('regex:') ? rule.slice(6) : rule;
@@ -157,6 +166,30 @@ export function checkBashAction(command: string, config: WaymarkConfig): PolicyR
         matchedRule: rule,
       };
     }
+  }
+
+  // 2. Requires approval queue
+  for (const rule of requireApprovalBash) {
+    if (isCommandBlocked(command, rule)) {
+      return {
+        decision: 'pending',
+        reason: `Command requires human approval before execution`,
+        matchedRule: rule,
+      };
+    }
+  }
+
+  // 3. Allowed commands whitelist — when non-empty, enforce default-deny for bash
+  if (allowedCommands.length > 0) {
+    const matched = allowedCommands.find(rule => isCommandBlocked(command, rule));
+    if (!matched) {
+      return {
+        decision: 'block',
+        reason: 'Command not in allowedCommands whitelist',
+        matchedRule: '(default deny bash)',
+      };
+    }
+    return { decision: 'allow', reason: 'Command in allowedCommands whitelist', matchedRule: matched };
   }
 
   return {

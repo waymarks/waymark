@@ -103,6 +103,34 @@ function parsePortFlag(argv: string[]): number | null {
   return port;
 }
 
+function validateConfig(config: any): string[] {
+  const warnings: string[] = [];
+  const policies = config.policies;
+  if (!policies) return warnings;
+
+  // Warn on overlapping blocked/allowed paths
+  const blocked: string[] = policies.blockedPaths || [];
+  const allowed: string[] = policies.allowedPaths || [];
+  for (const b of blocked) {
+    for (const a of allowed) {
+      if (a === b || a.startsWith(b.replace(/\*\*$/, '')) || b.startsWith(a.replace(/\*\*$/, ''))) {
+        warnings.push(`allowedPath "${a}" may be shadowed by blockedPath "${b}"`);
+      }
+    }
+  }
+
+  // Warn on invalid regex in blockedCommands
+  const cmds: string[] = policies.blockedCommands || [];
+  for (const cmd of cmds) {
+    if (cmd.startsWith('regex:')) {
+      try { new RegExp(cmd.slice(6)); }
+      catch { warnings.push(`Invalid regex in blockedCommands: "${cmd}"`); }
+    }
+  }
+
+  return warnings;
+}
+
 export async function run(): Promise<void> {
   const projectRoot = process.cwd();
   const configPath = path.join(projectRoot, 'waymark.config.json');
@@ -137,6 +165,10 @@ export async function run(): Promise<void> {
   let projectConfig: { port?: number } = {};
   try {
     projectConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const warnings = validateConfig(projectConfig);
+    for (const w of warnings) {
+      console.warn(`[waymark] Warning: ${w}`);
+    }
   } catch (err) {
     console.error(`Failed to parse waymark.config.json: ${err instanceof Error ? err.message : String(err)}`);
     process.exit(1);

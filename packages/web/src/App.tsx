@@ -3,6 +3,7 @@ import { AppShell } from '@/components/AppShell';
 import { VersionBanner } from '@/components/VersionBanner';
 import { TweaksPopover } from '@/components/TweaksPopover';
 import { useEventStream } from '@/api/eventStream';
+import { usePendingDocumentTitle } from '@/lib/useDocumentTitle';
 import { ActionsView } from '@/features/actions/ActionsView';
 import { SessionsView } from '@/features/sessions/SessionsView';
 import { ApprovalsView } from '@/features/approvals/ApprovalsView';
@@ -14,6 +15,7 @@ import { AgentMonitorView } from '@/features/agent-monitor/AgentMonitorView';
 
 export function App() {
   useEventStream();
+  usePendingDocumentTitle();
   return (
     <div>
       <VersionBanner />

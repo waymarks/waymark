@@ -131,6 +131,34 @@ export function createAgentMonitorRouter(
     });
   });
 
+  // ── POST /sessions/:id/pause ───────────────────────────────────────────────
+  router.post('/sessions/:id/pause', (req: Request, res: Response) => {
+    const snapshot = getSnapshot();
+    const session = snapshot.sessions.find((s) => s.sessionId === req.params['id']);
+    if (!session) { res.status(404).json({ error: 'Session not found' }); return; }
+    if (!session.pid) { res.status(400).json({ error: 'Session has no PID' }); return; }
+    try {
+      process.kill(session.pid, 'SIGSTOP');
+      res.json({ success: true, action: 'paused', pid: session.pid });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // ── POST /sessions/:id/resume ──────────────────────────────────────────────
+  router.post('/sessions/:id/resume', (req: Request, res: Response) => {
+    const snapshot = getSnapshot();
+    const session = snapshot.sessions.find((s) => s.sessionId === req.params['id']);
+    if (!session) { res.status(404).json({ error: 'Session not found' }); return; }
+    if (!session.pid) { res.status(400).json({ error: 'Session has no PID' }); return; }
+    try {
+      process.kill(session.pid, 'SIGCONT');
+      res.json({ success: true, action: 'resumed', pid: session.pid });
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   // ── GET /snapshot ──────────────────────────────────────────────────────────
   // Returns the raw `CollectorSnapshot`. Two consumers depend on this exact
   // shape: (1) the MCP process's `fetchSnapshotFromApi()`, whose handlers walk

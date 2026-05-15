@@ -61,4 +61,8 @@ temp/
 .playwright-mcp/
 
 # Project-to-project references
+docs/feedback/.claude/
 docs/feedback/
+
+# Claude Code worktrees
+.claude/

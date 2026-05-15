@@ -192,17 +192,49 @@ describe('approvePendingAction', () => {
     const { insertAction } = await import('../db/database');
 
     insertAction({
-      action_id: 'bash-pending',
+      action_id: 'unknown-tool-pending',
       session_id: 'sess3',
-      tool_name: 'bash',
-      input_payload: JSON.stringify({ command: 'ls' }),
+      tool_name: 'unknown_tool',
+      input_payload: JSON.stringify({}),
       status: 'pending',
       decision: 'pending',
     });
 
-    const result = await approvePendingAction('bash-pending');
+    const result = await approvePendingAction('unknown-tool-pending');
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/unsupported tool/i);
+  });
+
+  it('approves a pending bash action and executes the command', async () => {
+    // Write a permissive config so checkBashAction returns 'allow'
+    const permissiveConfig = {
+      version: '1',
+      policies: {
+        allowedPaths: [],
+        blockedPaths: [],
+        blockedCommands: [],
+        requireApproval: [],
+        requireApprovalBash: [],
+        allowedCommands: [],
+        maxBashOutputBytes: 10000,
+      },
+    };
+    fs.writeFileSync(path.join(tmpDir, 'waymark.config.json'), JSON.stringify(permissiveConfig));
+
+    const { approvePendingAction } = await import('./handler');
+    const { insertAction } = await import('../db/database');
+
+    insertAction({
+      action_id: 'bash-echo',
+      session_id: 'sess4',
+      tool_name: 'bash',
+      input_payload: JSON.stringify({ command: 'echo waymark-test' }),
+      status: 'pending',
+      decision: 'pending',
+    });
+
+    const result = await approvePendingAction('bash-echo');
+    expect(result.success).toBe(true);
   });
 });
 

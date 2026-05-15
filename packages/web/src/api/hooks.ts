@@ -57,6 +57,23 @@ export function useRollbackSession() {
   });
 }
 
+export function useRollbackPartial() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: ({ sessionId, actionIds }: { sessionId: string; actionIds: string[] }) =>
+      api.rollbackPartial(sessionId, actionIds),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['actions'] });
+      toast.push({
+        tone: 'ok',
+        message: `Rolled back ${res.actions_rolled_back} action${res.actions_rolled_back === 1 ? '' : 's'}.`,
+      });
+    },
+    onError: (err: Error) => toast.push({ tone: 'err', message: err.message }),
+  });
+}
+
 export function usePendingApprovals() {
   return useQuery({
     queryKey: ['approvals', 'pending'],
@@ -98,6 +115,19 @@ export function useRejectRequest(approverId: string) {
       qc.invalidateQueries({ queryKey: ['approvals'] });
       qc.invalidateQueries({ queryKey: ['actions'] });
       toast.push({ tone: 'ok', message: 'Rejection recorded.' });
+    },
+    onError: (err: Error) => toast.push({ tone: 'err', message: err.message }),
+  });
+}
+
+export function useUpdatePolicies() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: api.updatePolicies,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['config'] });
+      toast.push({ tone: 'ok', message: 'Policy saved.' });
     },
     onError: (err: Error) => toast.push({ tone: 'err', message: err.message }),
   });
@@ -317,6 +347,19 @@ export function useApproveAction() {
   });
 }
 
+export function useApproveActionWithEdit() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: ({ id, content }: { id: string; content: string }) => api.approveActionWithEdit(id, content),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['actions'] });
+      toast.push({ tone: 'ok', message: 'Action approved with edited content.' });
+    },
+    onError: (err: Error) => toast.push({ tone: 'err', message: err.message }),
+  });
+}
+
 export function useRejectAction() {
   const qc = useQueryClient();
   const toast = useToast();
@@ -387,5 +430,63 @@ export function useAgentSnapshot() {
     queryFn: api.getAgentSnapshot,
     refetchInterval: AGENT_POLL_MS,
     refetchIntervalInBackground: false,
+  });
+}
+
+export function usePauseAgentSession() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (sessionId: string) => api.pauseAgentSession(sessionId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agent-snapshot'] });
+      toast.push({ tone: 'info', message: 'Agent paused.' });
+    },
+    onError: (err: Error) => toast.push({ tone: 'err', message: err.message }),
+  });
+}
+
+export function useResumeAgentSession() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (sessionId: string) => api.resumeAgentSession(sessionId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agent-snapshot'] });
+      toast.push({ tone: 'ok', message: 'Agent resumed.' });
+    },
+    onError: (err: Error) => toast.push({ tone: 'err', message: err.message }),
+  });
+}
+
+// ─── Phase 4 features ─────────────────────────────────────────────────────────
+
+export function useReplayAction() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (actionId: string) => api.replayAction(actionId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['actions'] });
+      toast.push({ tone: 'ok', message: 'Action replayed — new entry queued.' });
+    },
+    onError: (err: Error) => toast.push({ tone: 'err', message: err.message }),
+  });
+}
+
+export function useSessionDiff(sessionId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['session-diff', sessionId],
+    queryFn: () => api.getSessionDiff(sessionId!),
+    enabled: !!sessionId,
+    staleTime: 30_000,
+  });
+}
+
+export function usePolicyHits() {
+  return useQuery({
+    queryKey: ['policy-hits'],
+    queryFn: api.getPolicyHits,
+    refetchInterval: 30_000,
   });
 }

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useQueries } from '@tanstack/react-query';
 import { Icon } from '@/components/Icon';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import {
@@ -9,6 +10,7 @@ import {
   useHubStop,
   useProject,
 } from '@/api/hooks';
+import { api } from '@/api/client';
 import type { HubProject } from '@/api/types';
 import { cn, compressPath, parseServerDate, timeAgo } from '@/lib/format';
 import { PeerStats } from './PeerStats';
@@ -88,11 +90,14 @@ export function HubView() {
           <div className="empty-sub">Run <code>npx @way_marks/cli init</code> + <code>start</code> in another project to see it here.</div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {projects.map((p) => (
-            <ProjectRow key={p.id} project={p} isCurrent={current?.projectName === p.projectName && current?.port === p.port} />
-          ))}
-        </div>
+        <>
+          <AggregateBanner projects={projects.filter((p) => p.status === 'running')} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {projects.map((p) => (
+              <ProjectRow key={p.id} project={p} isCurrent={current?.projectName === p.projectName && current?.port === p.port} />
+            ))}
+          </div>
+        </>
       )}
 
       <ConfirmModal
@@ -104,6 +109,25 @@ export function HubView() {
         onConfirm={() => { gc.mutate(); setConfirmGc(false); }}
       />
     </>
+  );
+}
+
+function AggregateBanner({ projects }: { projects: HubProject[] }) {
+  const results = useQueries({
+    queries: projects.map((p) => ({
+      queryKey: ['hub', 'peer-stats', p.port],
+      queryFn: ({ signal }: { signal: AbortSignal }) => api.getPeerStats(p.port, signal),
+      refetchInterval: 5_000,
+      staleTime: 4_000,
+      retry: false,
+    })),
+  });
+  const totalPending = results.reduce((sum, q) => sum + (q.data?.pendingCount ?? 0), 0);
+  if (totalPending === 0) return null;
+  return (
+    <div className="banner" style={{ borderColor: 'var(--pending)', color: 'var(--pending)', marginBottom: 10 }}>
+      {totalPending} pending approval{totalPending > 1 ? 's' : ''} across {projects.length} running project{projects.length > 1 ? 's' : ''}
+    </div>
   );
 }
 

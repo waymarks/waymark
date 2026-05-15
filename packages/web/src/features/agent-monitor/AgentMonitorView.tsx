@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAgentSnapshot } from '@/api/hooks';
 import type { AgentSession } from '@/api/types';
 import { SessionCard } from './SessionCard';
@@ -6,6 +7,7 @@ import { RateLimitBadge } from './RateLimitBadge';
 import { PortsList } from './PortsList';
 import { Icon } from '@/components/Icon';
 import { cn } from '@/lib/format';
+import { useUI } from '@/store/ui';
 
 type AgentFilter = 'all' | 'claude' | 'codex' | 'copilot';
 type StatusFilter = 'all' | 'active' | 'waiting' | 'done';
@@ -30,6 +32,8 @@ export function AgentMonitorView() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [tab, setTab] = useState<TabId>('sessions');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const { setSearch } = useUI();
 
   const { data: snapshot, isLoading, isError, error, dataUpdatedAt } = useAgentSnapshot();
 
@@ -181,7 +185,14 @@ export function AgentMonitorView() {
                     {(selected.fileAccesses ?? []).slice(0, 30).map((fa, i) => (
                       <li key={i} className="file-access-item">
                         <span className="fa-op">{fa.operation}</span>
-                        <code>{fa.path}</code>
+                        <button
+                          className="btn ghost"
+                          style={{ padding: 0, fontFamily: 'var(--font-mono)', fontSize: 12, textAlign: 'left' }}
+                          onClick={() => { setSearch(fa.path); navigate('/'); }}
+                          title="Filter actions by this path"
+                        >
+                          {fa.path}
+                        </button>
                       </li>
                     ))}
                   </ul>

@@ -32,10 +32,17 @@ interface UIState {
   setReviewerId: (id: string) => void;
 }
 
+function detectSystemTheme(): Theme {
+  if (typeof window !== 'undefined' && window.matchMedia) {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return 'dark';
+}
+
 export const useUI = create<UIState>()(
   persist(
     (set) => ({
-      theme: 'dark',
+      theme: detectSystemTheme(),
       density: 'comfy',
       grouping: 'session',
       accent: 'teal',
