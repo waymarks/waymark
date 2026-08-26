@@ -1,7 +1,7 @@
 site_name: Waymark
 site_url: https://shaifulshabuj.github.io/waymark/
 repo_url: https://github.com/waymarks/waymark
-repo_name: shaifulshabuj/waymark
+repo_name: waymarks/waymark
 docs_dir: mkdocs-docs
 
 theme:

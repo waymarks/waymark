@@ -358,7 +358,7 @@ All 17 bugs were identified by [teststop](https://shaifulshabuj.github.io/testst
 
 - **Daemon crash on first proxied request** — Setting `'transfer-encoding': undefined` in proxy request headers caused Node.js to throw `ERR_HTTP_INVALID_HEADER_VALUE`, crashing the daemon process on the first proxied request. Fixed by building a clean headers object that omits hop-by-hop and undefined-valued headers explicitly. Added `uncaughtException`/`unhandledRejection` guards so future errors log instead of crash.
 
-- **GitHub Pages showing v4.8.0** — The `docs.yml` workflow only updated the `stable` mike alias on `release: types: [published]` events, but GitHub Releases are published to `waymarks/waymark` (not `shaifulshabuj/waymark`), so `stable` was never updated. Fixed by reading the package version at deploy time and stamping `stable` + `latest` aliases on every push to main.
+- **GitHub Pages showing v4.8.0** — The `docs.yml` workflow only updated the `stable` mike alias on `release: types: [published]` events, but GitHub Releases are published to `waymarks/waymark` (not `waymarks/waymark`), so `stable` was never updated. Fixed by reading the package version at deploy time and stamping `stable` + `latest` aliases on every push to main.
 
 ---
 
