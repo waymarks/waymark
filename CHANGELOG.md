@@ -1,4 +1,4 @@
-## [6.0.0] — Unreleased
+## [6.0.0] — 2026-08-27
 
 ### Added
 - **Cross-Platform CI:** Added GitHub Actions matrix testing for Windows, macOS, and Linux to guarantee stable daemon behaviour across operating systems.
