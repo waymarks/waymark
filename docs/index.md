@@ -2,7 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/%40way_marks%2Fcli?label=npm&style=flat-square&color=6366f1)](https://www.npmjs.com/package/@way_marks/cli)
 [![npm downloads](https://img.shields.io/npm/dm/%40way_marks%2Fcli?label=downloads&style=flat-square&color=10b981)](https://www.npmjs.com/package/@way_marks/cli)
-[![GitHub Repo stars](https://img.shields.io/github/stars/shaifulshabuj/waymark?style=flat-square&color=f59e0b)](https://github.com/shaifulshabuj/waymark)
+[![GitHub Repo stars](https://img.shields.io/github/stars/shaifulshabuj/waymark?style=flat-square&color=f59e0b)](https://github.com/waymarks/waymark)
 
 > Intercept, log, enforce policies on, and make reversible every file and shell action your AI agent takes.
 

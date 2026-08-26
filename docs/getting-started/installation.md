@@ -33,7 +33,7 @@ Waymark is a Node.js and TypeScript toolchain built around a CLI package (`@way_
 === "Development setup"
 
     ```bash
-    git clone https://github.com/shaifulshabuj/waymark.git
+    git clone https://github.com/waymarks/waymark.git
     cd waymark
     npm install
     npm run build

@@ -26,7 +26,7 @@ Use Waymark when you want:
 
 ### Is Waymark safe?
 
-Waymark is local-first, open source, permission-based, and designed around reversible writes. Logs and the database live on your machine unless you deliberately export or forward data elsewhere.
+Waymark is local-first, permission-based, and designed around reversible writes. Logs and the database live on your machine unless you deliberately export or forward data elsewhere.
 
 !!! tip "Protect `.waymark/`"
     The ledger can contain file content snapshots, so keep the project-local `.waymark/` directory private and gitignored.

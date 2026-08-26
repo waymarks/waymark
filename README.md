@@ -78,12 +78,12 @@ Waymark is the control plane of a four-tool developer suite:
 
 | Tool | Role | What it does |
 |------|------|--------------|
-| [devloop](https://github.com/shaifulshabuj/devloop) | Build | Multi-agent dev pipeline — architect → worker → reviewer loop |
+| devloop | Build | Multi-agent dev pipeline — architect → worker → reviewer loop |
 | **waymark** | **Run** | **Policy enforcement + observability for AI agents** |
-| [teststop](https://github.com/shaifulshabuj/teststop) | Break | Adversarial scenario testing — acts as a real, impatient user |
-| [docuflow](https://github.com/shaifulshabuj/docuflow-mcp) | Document | Decision-context wiki for AI agents |
+| teststop | Break | Adversarial scenario testing — acts as a real, impatient user |
+| [docuflow](https://github.com/doquflows/docuflow) | Document | Decision-context wiki for AI agents |
 
-**Adversarial testing:** teststop runs 52 predicted risk scenarios against waymark's live API, targeting edge cases a real user would hit — concurrent approvals, stale tabs, rollback races, policy bypass attempts. See [`examples/waymark-demo`](https://github.com/shaifulshabuj/teststop/tree/main/examples/waymark-demo) for the full scenario set and confidence report. The v5.0.13–v5.0.16 safety fixes were all surfaced by this suite.
+**Adversarial testing:** teststop runs 52 predicted risk scenarios against waymark's live API, targeting edge cases a real user would hit — concurrent approvals, stale tabs, rollback races, policy bypass attempts. See `examples/waymark-demo` for the full scenario set and confidence report. The v5.0.13–v5.0.16 safety fixes were all surfaced by this suite.
 
 ---
 
