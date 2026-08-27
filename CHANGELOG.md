@@ -1,3 +1,16 @@
+## [6.0.1] — 2026-08-27
+
+### Fixed
+- **Package READMEs stated the wrong licence.** The READMEs shipped inside `@way_marks/cli` and
+  `@way_marks/server` are what npmjs.com renders on each package page, and both still said the
+  project was MIT licensed. `package.json` already declared `SEE LICENSE IN LICENSE`, so npm's
+  sidebar was correct while the page body contradicted it. Both now state the proprietary
+  freeware terms.
+- **The CLI README invited contributions to a private repository.** It carried a Contributing
+  section telling readers to fork `github.com/shaifulshabuj/waymark`, which is private, for a
+  product that no longer accepts outside contributions. Replaced with a Support section pointing
+  at the public issue tracker.
+
 ## [6.0.0] — 2026-08-27
 
 ### Added
@@ -5,7 +18,17 @@
 - **Agentic Protocols:** Embedded Copilot and Claude instructions natively (`PULL_REQUEST_TEMPLATE`, `ATTEST_PROMPT.md`, `AGENTS.md`) for self-governing autonomous agents.
 - **Bash execution bounds:** `maxBashTimeoutMs` and `maxBashOutputBytes` policies to safely constrain runaway CLI loops inside agent sandboxes.
 
+### Fixed
+- **Policy engine matched nothing on Windows.** Resolved file paths and glob patterns both arrive with
+  backslash separators, which micromatch treats as escape characters rather than separators, so every
+  `allowedPaths` comparison failed and the engine fell through to default-deny. Both sides are now
+  normalised before matching. No behaviour change on Linux or macOS.
+
 ### Changed
+- **Licence:** relicensed from MIT to a proprietary freeware licence. The software remains free to
+  use, with no warranty and at the user's own risk; redistribution, resale, modification and rights
+  in the source code are not granted. Versions published before 2026-08-27 remain under the MIT Licence.
+- Source development moved to a private repository. This repository now carries documentation only.
 - Refined cron noise: npm statistics are now updated weekly rather than every 6 hours, vastly reducing commit history pollution on the main branch.
 - Re-ingested DocuFlow AI wiki structures to map latest module boundaries (518 pages total).
 
@@ -358,7 +381,7 @@ All 17 bugs were identified by [teststop](https://shaifulshabuj.github.io/testst
 
 - **Daemon crash on first proxied request** — Setting `'transfer-encoding': undefined` in proxy request headers caused Node.js to throw `ERR_HTTP_INVALID_HEADER_VALUE`, crashing the daemon process on the first proxied request. Fixed by building a clean headers object that omits hop-by-hop and undefined-valued headers explicitly. Added `uncaughtException`/`unhandledRejection` guards so future errors log instead of crash.
 
-- **GitHub Pages showing v4.8.0** — The `docs.yml` workflow only updated the `stable` mike alias on `release: types: [published]` events, but GitHub Releases are published to `waymarks/waymark` (not `waymarks/waymark`), so `stable` was never updated. Fixed by reading the package version at deploy time and stamping `stable` + `latest` aliases on every push to main.
+- **GitHub Pages showing v4.8.0** — The `docs.yml` workflow only updated the `stable` mike alias on `release: types: [published]` events, but GitHub Releases are published to `waymarks/waymark` (not `shaifulshabuj/waymark`), so `stable` was never updated. Fixed by reading the package version at deploy time and stamping `stable` + `latest` aliases on every push to main.
 
 ---
 
@@ -945,9 +968,9 @@ Verified the new pattern matches real secrets (`sk-ant-api03-…`, `npm_aBcD…<
 
 | Check | Result |
 |---|---|
-| New regex matches `sk-ant-api03-AbCdEfGh1234567890` | ✅ |
-| New regex matches `npm_aBcD1234567890aBcD1234567890aBcD1234` (32+ char alnum tail) | ✅ |
-| New regex matches `ANTHROPIC_API_KEY = "sk-ant-real-secret-here-XXX"` | ✅ |
+| New regex matches `sk-ant-api03-<18 alnum chars>` | ✅ |
+| New regex matches `npm_<36 alnum chars>` (32+ char alnum tail) | ✅ |
+| New regex matches `ANTHROPIC_API_KEY = "…"` | ✅ |
 | New regex skips `process.env.npm_config_global` (the previous false positive) | ✅ |
 | New regex skips `process.env.npm_lifecycle_event` | ✅ |
 | New regex skips `"npm install -g @way_marks/cli"` | ✅ |
