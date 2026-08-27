@@ -7,7 +7,7 @@
   sidebar was correct while the page body contradicted it. Both now state the proprietary
   freeware terms.
 - **The CLI README invited contributions to a private repository.** It carried a Contributing
-  section telling readers to fork `github.com/shaifulshabuj/waymark`, which is private, for a
+  section telling readers to fork the source repository, which is private, for a
   product that no longer accepts outside contributions. Replaced with a Support section pointing
   at the public issue tracker.
 
