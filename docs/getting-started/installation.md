@@ -30,17 +30,6 @@ Waymark is a Node.js and TypeScript toolchain built around a CLI package (`@way_
 
     `npx` is the fastest way to try Waymark in a project without managing a global install.
 
-=== "Development setup"
-
-    ```bash
-    git clone https://github.com/waymarks/waymark.git
-    cd waymark
-    npm install
-    npm run build
-    ```
-
-    Use this path when you want to work on Waymark itself, test changes, or run the monorepo locally.
-
 ## What gets installed
 
 The CLI handles project initialization and lifecycle commands such as `init`, `start`, `status`, `logs`, and `watch`. The server package provides the MCP server, API server, dashboard assets, SQLite action ledger, approval handling, policy engine, and agent monitor.
