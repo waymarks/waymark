@@ -1,16 +1,26 @@
 # Changelog
 
-This page summarizes the major public-facing changes from the repository changelog. For the full historical record, see the root `CHANGELOG.md` in the repo.
+This page summarizes the major public-facing changes. Release notes for each version, with links to the published npm packages, are on the [releases page](https://github.com/waymarks/waymark/releases).
 
-## [Unreleased] — Rate limit dashboard fix
+## [6.0.0] — 2026-08-27
+
+**Waymark is now proprietary freeware.** It stays free to use, with no warranty and at your own risk. Redistribution, resale, modification and rights in the source code are not granted. Versions published before 2026-08-27 remain under the MIT Licence. Source development has moved to a private repository; this site and the public repository carry documentation only.
+
+### Changed
+
+- **Licence:** relicensed from MIT to a proprietary freeware licence, as described above.
+- npm download statistics are refreshed weekly rather than every six hours.
 
 ### Fixed
 
+- **Policy engine matched nothing on Windows** — resolved file paths and glob patterns both arrive with backslash separators, which the matcher treats as escape characters rather than separators. Every `allowedPaths` comparison therefore failed and the engine fell through to default-deny, blocking legitimate reads and writes. Both sides are now normalised before matching. No behaviour change on Linux or macOS.
 - **Rate Limits tab was always blank** — The dashboard was reading `~/.claude/abtop-rate-limits.json`, which the Stop hook never actually wrote (the grep patterns didn't match anything in Claude Code's transcripts). The collector now scans `~/.claude/projects/**/*.jsonl` directly. Token usage appears automatically without any hook setup.
 - **Type mismatch in `/snapshot` endpoint** — The snapshot route was passing raw server-side `{fiveHourPct}` to the frontend, which expected the API-shaped `{fiveHour: {usedPercent, resetsAtIso}}`. Both `/snapshot` and `/rate-limits` now use the same `toApiRateLimit()` transform.
 
 ### Added
 
+- **Cross-platform CI** — the test suite now runs on Windows, macOS and Linux on every change, so daemon and path behaviour is verified on all three rather than assumed.
+- **Bash execution bounds** — `maxBashTimeoutMs` and `maxBashOutputBytes` policies constrain runaway CLI loops inside agent sandboxes.
 - **Token-window visualization** — 5h and 7d rolling window token counts, 30-min burn rate with projected time-to-limit, reset countdown, and per-model breakdown.
 - **No setup required** — Rate limit data populates automatically as long as Claude Code has run at least one session. `waymark setup-hook` is now optional.
 - **Plan limit config** — Set `planTokenLimit` in `~/.waymark/config.json` to unlock percentage progress bars.
