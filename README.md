@@ -87,7 +87,9 @@ Runs on Windows, macOS and Linux. [Platform guide →](https://shaifulshabuj.git
 
 ## Releases
 
-Current release: **v6.0.0** — see the [changelog](https://shaifulshabuj.github.io/waymark/latest/changelog/) or [CHANGELOG.md](CHANGELOG.md).
+Every release is published on the [releases page](https://github.com/waymarks/waymark/releases) with its notes and links to the npm packages for that version. The [changelog](https://shaifulshabuj.github.io/waymark/latest/changelog/) on the documentation site carries the same history in one page.
+
+Installing `@way_marks/cli` always gives you the current release.
 
 ---
 
