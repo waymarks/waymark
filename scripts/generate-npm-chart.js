@@ -11,7 +11,7 @@ const fs    = require('fs');
 const path  = require('path');
 
 const PACKAGES    = ['@way_marks/cli', '@way_marks/server'];
-const OUTPUT_PATH = path.join(__dirname, '..', 'docs', 'npm-downloads.svg');
+const OUTPUT_PATH = path.join(__dirname, '..', 'assets', 'npm-downloads.svg');
 
 function get(url) {
   return new Promise((resolve, reject) => {

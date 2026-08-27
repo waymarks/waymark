@@ -11,7 +11,7 @@ Waymark is MCP middleware that sits between an AI agent and the filesystem. Ever
 [![npm version](https://img.shields.io/npm/v/%40way_marks%2Fcli?label=version&style=flat-square&color=374151)](https://www.npmjs.com/package/@way_marks/cli)
 [![docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue?style=flat-square&logo=github)](https://shaifulshabuj.github.io/waymark/)
 
-![npm download chart](./docs/npm-downloads.svg)
+![npm download chart](./assets/npm-downloads.svg)
 
 > Updated every 6 hours via GitHub Actions
 
@@ -94,10 +94,10 @@ Waymark is the control plane of a four-tool developer suite:
 | **Claude Desktop** | ✅ Recommended | Full features | `waymark init` |
 | **Claude Code** | ✅ Recommended | Full features | `waymark init` |
 | **GitHub Copilot CLI** | ✅ Supported | Full features | `waymark init` |
-| **GitHub Copilot Chat** | ⏳ Future | Waiting for GitHub MCP | See [Platform Guide](docs/README_PLATFORMS.md) |
-| **CodeWhisperer, Codeium, others** | ⏳ Future | Waiting for MCP adoption | See [Platform Guide](docs/README_PLATFORMS.md) |
+| **GitHub Copilot Chat** | ⏳ Future | Waiting for GitHub MCP | See [Platform Guide](https://shaifulshabuj.github.io/waymark/latest/features/platforms/) |
+| **CodeWhisperer, Codeium, others** | ⏳ Future | Waiting for MCP adoption | See [Platform Guide](https://shaifulshabuj.github.io/waymark/latest/features/platforms/) |
 
-**👉 For detailed platform information, see [docs/README_PLATFORMS.md](docs/README_PLATFORMS.md)**
+**👉 For detailed platform information, see [docs/README_PLATFORMS.md](https://shaifulshabuj.github.io/waymark/latest/features/platforms/)**
 
 ---
 
@@ -107,14 +107,14 @@ Waymark is the control plane of a four-tool developer suite:
 
 Covers installation, quickstart, CLI reference, API reference, policy engine, approvals, rollback, agent monitor, philosophy, and changelog.
 
-**User stories and feature walkthroughs:** **[docs/user-stories/README.md](docs/user-stories/README.md)**
+**User stories and feature walkthroughs:** **[docs/user-stories/README.md](https://shaifulshabuj.github.io/waymark/latest/features/)**
 
-- [Feature 01: Team Approval Routing](docs/user-stories/feature-01-approval-routing/) — Human-in-the-loop control for sensitive changes
-- [Feature 02: Session-Level Rollback](docs/user-stories/feature-02-session-rollback/) — Atomic undo for entire AI agent runs
-- [Feature 03: Email Notifications](docs/user-stories/feature-03-email-notifications/) — SMTP-based alerts for pending approvals
-- [Feature 04: Multi-Platform Support](docs/user-stories/feature-04-multi-platform/) — Consistent governance on Windows, macOS, and Linux
-- [Feature 05: Agent Monitor](docs/user-stories/feature-05-agent-monitor/) — Live observability for running and completed AI agent sessions
-- [Feature 06: Enterprise Notifications & Analytics](docs/user-stories/feature-06-enterprise-notifications/) — Block persistence, webhook fan-out, email approval tokens, per-member prefs, and analytics cards
+- [Feature 01: Team Approval Routing](https://shaifulshabuj.github.io/waymark/latest/features/approvals-rollback/) — Human-in-the-loop control for sensitive changes
+- [Feature 02: Session-Level Rollback](https://shaifulshabuj.github.io/waymark/latest/features/approvals-rollback/) — Atomic undo for entire AI agent runs
+- [Feature 03: Email Notifications](https://shaifulshabuj.github.io/waymark/latest/features/enterprise/) — SMTP-based alerts for pending approvals
+- [Feature 04: Multi-Platform Support](https://shaifulshabuj.github.io/waymark/latest/features/platforms/) — Consistent governance on Windows, macOS, and Linux
+- [Feature 05: Agent Monitor](https://shaifulshabuj.github.io/waymark/latest/features/agent-monitor/) — Live observability for running and completed AI agent sessions
+- [Feature 06: Enterprise Notifications & Analytics](https://shaifulshabuj.github.io/waymark/latest/features/enterprise/) — Block persistence, webhook fan-out, email approval tokens, per-member prefs, and analytics cards
 
 ---
 
@@ -558,20 +558,20 @@ const CONFIG_PATH = path.join(PROJECT_ROOT, 'waymark.config.json');  // engine.t
 
 ## Documentation
 
-The full documentation lives in [`docs/`](docs/). Start at [`docs/README.md`](docs/README.md) for a grouped index of every guide.
+The full documentation lives in [`docs/`](https://shaifulshabuj.github.io/waymark/latest/). Start at [`docs/README.md`](https://shaifulshabuj.github.io/waymark/latest/) for a grouped index of every guide.
 
 Most-used pages:
 
 - [`FEATURES.md`](FEATURES.md) — High-level feature list.
-- [`docs/FAQ.md`](docs/FAQ.md) — Frequently asked questions.
-- [`docs/APPROVALS.md`](docs/APPROVALS.md) · [`docs/ESCALATIONS.md`](docs/ESCALATIONS.md) · [`docs/REMEDIATION.md`](docs/REMEDIATION.md) — Approval, escalation, and rollback workflows.
-- [`docs/SESSIONS.md`](docs/SESSIONS.md) — Agent session tracking.
-- [`docs/README_PLATFORMS.md`](docs/README_PLATFORMS.md) — Supported platforms.
-- [`docs/COPILOT_CLI.md`](docs/COPILOT_CLI.md) — GitHub Copilot CLI integration.
-- [`docs/user-stories/README.md`](docs/user-stories/README.md) — Feature walkthroughs with screenshots.
-- [`docs/PHASES.md`](docs/PHASES.md) · [`docs/RELEASES.md`](docs/RELEASES.md) — Phase and release indexes.
+- [`docs/FAQ.md`](https://shaifulshabuj.github.io/waymark/latest/faq/) — Frequently asked questions.
+- [`docs/APPROVALS.md`](https://shaifulshabuj.github.io/waymark/latest/features/approvals-rollback/) · [`docs/ESCALATIONS.md`](https://shaifulshabuj.github.io/waymark/latest/features/enterprise/) · [`docs/REMEDIATION.md`](https://shaifulshabuj.github.io/waymark/latest/features/risk-remediation/) — Approval, escalation, and rollback workflows.
+- [`docs/SESSIONS.md`](https://shaifulshabuj.github.io/waymark/latest/features/team-sessions/) — Agent session tracking.
+- [`docs/README_PLATFORMS.md`](https://shaifulshabuj.github.io/waymark/latest/features/platforms/) — Supported platforms.
+- [`docs/COPILOT_CLI.md`](https://shaifulshabuj.github.io/waymark/latest/features/platforms/) — GitHub Copilot CLI integration.
+- [`docs/user-stories/README.md`](https://shaifulshabuj.github.io/waymark/latest/features/) — Feature walkthroughs with screenshots.
+- [`docs/PHASES.md`](https://shaifulshabuj.github.io/waymark/latest/features/) · [`docs/RELEASES.md`](https://shaifulshabuj.github.io/waymark/latest/changelog/) — Phase and release indexes.
 - [`CLAUDE.md`](CLAUDE.md) · [`AGENTS.md`](AGENTS.md) — Agent rules when Waymark is active.
-- [`docs/philosophy.md`](docs/philosophy.md) — The full philosophy behind why Waymark exists.
+- [`docs/philosophy.md`](https://shaifulshabuj.github.io/waymark/latest/philosophy/) — The full philosophy behind why Waymark exists.
 
 ---
 

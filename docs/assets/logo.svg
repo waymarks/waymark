@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
-  <title id="title">Waymark logo</title>
-  <desc id="desc">A purple hexagon with a white W.</desc>
-  <path fill="#6366f1" d="M64 8 110 34v60L64 120 18 94V34z"/>
-  <path fill="#ffffff" d="M35 38h12l10 34 7-20h10l7 20 10-34h12L92 91H81L69 60 57 91H46z"/>
-</svg>
