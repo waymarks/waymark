@@ -35,39 +35,39 @@
   
     <line x1="64" y1="224.0" x2="836" y2="224.0" class="grid" stroke-width="1"/>
     <text x="56" y="224.0" text-anchor="end" dominant-baseline="middle" font-size="11" class="lbl">0</text>
-    <line x1="64" y1="178.6" x2="836" y2="178.6" class="grid" stroke-width="1"/>
-    <text x="56" y="178.6" text-anchor="end" dominant-baseline="middle" font-size="11" class="lbl">16</text>
+    <line x1="64" y1="180.0" x2="836" y2="180.0" class="grid" stroke-width="1"/>
+    <text x="56" y="180.0" text-anchor="end" dominant-baseline="middle" font-size="11" class="lbl">100</text>
     <line x1="64" y1="136.0" x2="836" y2="136.0" class="grid" stroke-width="1"/>
-    <text x="56" y="136.0" text-anchor="end" dominant-baseline="middle" font-size="11" class="lbl">31</text>
-    <line x1="64" y1="90.6" x2="836" y2="90.6" class="grid" stroke-width="1"/>
-    <text x="56" y="90.6" text-anchor="end" dominant-baseline="middle" font-size="11" class="lbl">47</text>
+    <text x="56" y="136.0" text-anchor="end" dominant-baseline="middle" font-size="11" class="lbl">200</text>
+    <line x1="64" y1="92.0" x2="836" y2="92.0" class="grid" stroke-width="1"/>
+    <text x="56" y="92.0" text-anchor="end" dominant-baseline="middle" font-size="11" class="lbl">300</text>
     <line x1="64" y1="48.0" x2="836" y2="48.0" class="grid" stroke-width="1"/>
-    <text x="56" y="48.0" text-anchor="end" dominant-baseline="middle" font-size="11" class="lbl">62</text>
+    <text x="56" y="48.0" text-anchor="end" dominant-baseline="middle" font-size="11" class="lbl">400</text>
   
-    <polygon points="64.0,224.0 90.6,215.5 117.2,218.3 143.9,221.2 170.5,224.0 197.1,224.0 223.7,224.0 250.3,224.0 277.0,224.0 303.6,209.8 330.2,218.3 356.8,56.5 383.4,138.8 410.1,224.0 436.7,87.7 463.3,224.0 489.9,215.5 516.6,224.0 543.2,224.0 569.8,224.0 596.4,59.4 623.0,224.0 649.7,221.2 676.3,224.0 702.9,218.3 729.5,224.0 756.1,224.0 782.8,218.3 809.4,218.3 836.0,221.2 836.0,224.0 64.0,224.0" fill="url(#grad0)"/>
-    <polygon points="64.0,224.0 90.6,212.6 117.2,224.0 143.9,215.5 170.5,224.0 197.1,224.0 223.7,224.0 250.3,224.0 277.0,224.0 303.6,209.8 330.2,212.6 356.8,53.7 383.4,184.3 410.1,221.2 436.7,82.1 463.3,48.0 489.9,215.5 516.6,215.5 543.2,224.0 569.8,224.0 596.4,59.4 623.0,221.2 649.7,218.3 676.3,218.3 702.9,215.5 729.5,224.0 756.1,221.2 782.8,224.0 809.4,224.0 836.0,221.2 836.0,224.0 64.0,224.0" fill="url(#grad1)"/>
+    <polygon points="64.0,223.6 90.6,224.0 117.2,224.0 143.9,224.0 170.5,224.0 197.1,224.0 223.7,221.8 250.3,223.1 277.0,198.0 303.6,210.8 330.2,224.0 356.8,202.9 383.4,224.0 410.1,222.7 436.7,224.0 463.3,224.0 489.9,224.0 516.6,198.5 543.2,224.0 569.8,223.6 596.4,224.0 623.0,223.1 649.7,224.0 676.3,224.0 702.9,223.1 729.5,223.1 756.1,223.6 782.8,224.0 809.4,48.0 836.0,191.4 836.0,224.0 64.0,224.0" fill="url(#grad0)"/>
+    <polygon points="64.0,222.7 90.6,224.0 117.2,224.0 143.9,224.0 170.5,224.0 197.1,224.0 223.7,221.8 250.3,222.2 277.0,197.6 303.6,217.8 330.2,223.6 356.8,202.0 383.4,196.7 410.1,222.7 436.7,222.7 463.3,224.0 489.9,224.0 516.6,198.5 543.2,223.6 569.8,223.1 596.4,223.1 623.0,222.7 649.7,224.0 676.3,223.6 702.9,224.0 729.5,224.0 756.1,223.6 782.8,224.0 809.4,52.8 836.0,187.9 836.0,224.0 64.0,224.0" fill="url(#grad1)"/>
   
-    <polyline points="64.0,224.0 90.6,215.5 117.2,218.3 143.9,221.2 170.5,224.0 197.1,224.0 223.7,224.0 250.3,224.0 277.0,224.0 303.6,209.8 330.2,218.3 356.8,56.5 383.4,138.8 410.1,224.0 436.7,87.7 463.3,224.0 489.9,215.5 516.6,224.0 543.2,224.0 569.8,224.0 596.4,59.4 623.0,224.0 649.7,221.2 676.3,224.0 702.9,218.3 729.5,224.0 756.1,224.0 782.8,218.3 809.4,218.3 836.0,221.2" fill="none" stroke="#6366f1" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
-    <polyline points="64.0,224.0 90.6,212.6 117.2,224.0 143.9,215.5 170.5,224.0 197.1,224.0 223.7,224.0 250.3,224.0 277.0,224.0 303.6,209.8 330.2,212.6 356.8,53.7 383.4,184.3 410.1,221.2 436.7,82.1 463.3,48.0 489.9,215.5 516.6,215.5 543.2,224.0 569.8,224.0 596.4,59.4 623.0,221.2 649.7,218.3 676.3,218.3 702.9,215.5 729.5,224.0 756.1,221.2 782.8,224.0 809.4,224.0 836.0,221.2" fill="none" stroke="#10b981" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+    <polyline points="64.0,223.6 90.6,224.0 117.2,224.0 143.9,224.0 170.5,224.0 197.1,224.0 223.7,221.8 250.3,223.1 277.0,198.0 303.6,210.8 330.2,224.0 356.8,202.9 383.4,224.0 410.1,222.7 436.7,224.0 463.3,224.0 489.9,224.0 516.6,198.5 543.2,224.0 569.8,223.6 596.4,224.0 623.0,223.1 649.7,224.0 676.3,224.0 702.9,223.1 729.5,223.1 756.1,223.6 782.8,224.0 809.4,48.0 836.0,191.4" fill="none" stroke="#6366f1" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+    <polyline points="64.0,222.7 90.6,224.0 117.2,224.0 143.9,224.0 170.5,224.0 197.1,224.0 223.7,221.8 250.3,222.2 277.0,197.6 303.6,217.8 330.2,223.6 356.8,202.0 383.4,196.7 410.1,222.7 436.7,222.7 463.3,224.0 489.9,224.0 516.6,198.5 543.2,223.6 569.8,223.1 596.4,223.1 623.0,222.7 649.7,224.0 676.3,223.6 702.9,224.0 729.5,224.0 756.1,223.6 782.8,224.0 809.4,52.8 836.0,187.9" fill="none" stroke="#10b981" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
   
-    <text x="64.0" y="242" text-anchor="middle" font-size="11" class="lbl">Jul 27</text>
-    <text x="197.1" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 1</text>
-    <text x="330.2" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 6</text>
-    <text x="463.3" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 11</text>
-    <text x="596.4" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 16</text>
-    <text x="729.5" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 21</text>
-    <text x="836.0" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 25</text>
+    <text x="64.0" y="242" text-anchor="middle" font-size="11" class="lbl">Jul 30</text>
+    <text x="197.1" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 4</text>
+    <text x="330.2" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 9</text>
+    <text x="463.3" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 14</text>
+    <text x="596.4" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 19</text>
+    <text x="729.5" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 24</text>
+    <text x="836.0" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 28</text>
   
-    <circle cx="836.0" cy="221.2" r="4" fill="#6366f1" class="dot" stroke-width="2"><title>1 downloads</title></circle>
-    <circle cx="836.0" cy="221.2" r="4" fill="#10b981" class="dot" stroke-width="2"><title>1 downloads</title></circle>
+    <circle cx="836.0" cy="191.4" r="4" fill="#6366f1" class="dot" stroke-width="2"><title>74 downloads</title></circle>
+    <circle cx="836.0" cy="187.9" r="4" fill="#10b981" class="dot" stroke-width="2"><title>82 downloads</title></circle>
   
     <rect x="64" y="12" width="12" height="12" rx="3" fill="#6366f1"/>
     <text x="82" y="22" font-size="13" class="legend" font-weight="600">@way_marks/cli</text>
-    <text x="82" y="36" font-size="11" class="lbl">219 last 30 days</text>
+    <text x="82" y="36" font-size="11" class="lbl">688 last 30 days</text>
     <rect x="284" y="12" width="12" height="12" rx="3" fill="#10b981"/>
     <text x="302" y="22" font-size="13" class="legend" font-weight="600">@way_marks/server</text>
-    <text x="302" y="36" font-size="11" class="lbl">277 last 30 days</text>
-  <text x="836" y="272" text-anchor="end" font-size="10" class="foot">Updated 2026-08-27</text>
+    <text x="302" y="36" font-size="11" class="lbl">744 last 30 days</text>
+  <text x="836" y="272" text-anchor="end" font-size="10" class="foot">Updated 2026-08-30</text>
   <line x1="64" y1="48" x2="64" y2="224" class="axis" stroke-width="1"/>
   <line x1="64" y1="224" x2="836" y2="224" class="axis" stroke-width="1"/>
 </svg>
