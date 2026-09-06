@@ -44,30 +44,30 @@
     <line x1="64" y1="48.0" x2="836" y2="48.0" class="grid" stroke-width="1"/>
     <text x="56" y="48.0" text-anchor="end" dominant-baseline="middle" font-size="11" class="lbl">400</text>
   
-    <polygon points="64.0,223.6 90.6,224.0 117.2,224.0 143.9,224.0 170.5,224.0 197.1,224.0 223.7,221.8 250.3,223.1 277.0,198.0 303.6,210.8 330.2,224.0 356.8,202.9 383.4,224.0 410.1,222.7 436.7,224.0 463.3,224.0 489.9,224.0 516.6,198.5 543.2,224.0 569.8,223.6 596.4,224.0 623.0,223.1 649.7,224.0 676.3,224.0 702.9,223.1 729.5,223.1 756.1,223.6 782.8,224.0 809.4,48.0 836.0,191.4 836.0,224.0 64.0,224.0" fill="url(#grad0)"/>
-    <polygon points="64.0,222.7 90.6,224.0 117.2,224.0 143.9,224.0 170.5,224.0 197.1,224.0 223.7,221.8 250.3,222.2 277.0,197.6 303.6,217.8 330.2,223.6 356.8,202.0 383.4,196.7 410.1,222.7 436.7,222.7 463.3,224.0 489.9,224.0 516.6,198.5 543.2,223.6 569.8,223.1 596.4,223.1 623.0,222.7 649.7,224.0 676.3,223.6 702.9,224.0 729.5,224.0 756.1,223.6 782.8,224.0 809.4,52.8 836.0,187.9 836.0,224.0 64.0,224.0" fill="url(#grad1)"/>
+    <polygon points="64.0,224.0 90.6,224.0 117.2,224.0 143.9,224.0 170.5,224.0 197.1,221.8 223.7,223.1 250.3,198.0 277.0,210.8 303.6,224.0 330.2,202.9 356.8,224.0 383.4,222.7 410.1,224.0 436.7,224.0 463.3,224.0 489.9,198.5 516.6,224.0 543.2,223.6 569.8,224.0 596.4,223.1 623.0,224.0 649.7,224.0 676.3,223.1 702.9,223.1 729.5,223.6 756.1,224.0 782.8,48.0 809.4,191.4 836.0,217.4 836.0,224.0 64.0,224.0" fill="url(#grad0)"/>
+    <polygon points="64.0,224.0 90.6,224.0 117.2,224.0 143.9,224.0 170.5,224.0 197.1,221.8 223.7,222.2 250.3,197.6 277.0,217.8 303.6,223.6 330.2,202.0 356.8,196.7 383.4,222.7 410.1,222.7 436.7,224.0 463.3,224.0 489.9,198.5 516.6,223.6 543.2,223.1 569.8,223.1 596.4,222.7 623.0,224.0 649.7,223.6 676.3,224.0 702.9,224.0 729.5,223.6 756.1,224.0 782.8,52.8 809.4,187.9 836.0,217.0 836.0,224.0 64.0,224.0" fill="url(#grad1)"/>
   
-    <polyline points="64.0,223.6 90.6,224.0 117.2,224.0 143.9,224.0 170.5,224.0 197.1,224.0 223.7,221.8 250.3,223.1 277.0,198.0 303.6,210.8 330.2,224.0 356.8,202.9 383.4,224.0 410.1,222.7 436.7,224.0 463.3,224.0 489.9,224.0 516.6,198.5 543.2,224.0 569.8,223.6 596.4,224.0 623.0,223.1 649.7,224.0 676.3,224.0 702.9,223.1 729.5,223.1 756.1,223.6 782.8,224.0 809.4,48.0 836.0,191.4" fill="none" stroke="#6366f1" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
-    <polyline points="64.0,222.7 90.6,224.0 117.2,224.0 143.9,224.0 170.5,224.0 197.1,224.0 223.7,221.8 250.3,222.2 277.0,197.6 303.6,217.8 330.2,223.6 356.8,202.0 383.4,196.7 410.1,222.7 436.7,222.7 463.3,224.0 489.9,224.0 516.6,198.5 543.2,223.6 569.8,223.1 596.4,223.1 623.0,222.7 649.7,224.0 676.3,223.6 702.9,224.0 729.5,224.0 756.1,223.6 782.8,224.0 809.4,52.8 836.0,187.9" fill="none" stroke="#10b981" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+    <polyline points="64.0,224.0 90.6,224.0 117.2,224.0 143.9,224.0 170.5,224.0 197.1,221.8 223.7,223.1 250.3,198.0 277.0,210.8 303.6,224.0 330.2,202.9 356.8,224.0 383.4,222.7 410.1,224.0 436.7,224.0 463.3,224.0 489.9,198.5 516.6,224.0 543.2,223.6 569.8,224.0 596.4,223.1 623.0,224.0 649.7,224.0 676.3,223.1 702.9,223.1 729.5,223.6 756.1,224.0 782.8,48.0 809.4,191.4 836.0,217.4" fill="none" stroke="#6366f1" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
+    <polyline points="64.0,224.0 90.6,224.0 117.2,224.0 143.9,224.0 170.5,224.0 197.1,221.8 223.7,222.2 250.3,197.6 277.0,217.8 303.6,223.6 330.2,202.0 356.8,196.7 383.4,222.7 410.1,222.7 436.7,224.0 463.3,224.0 489.9,198.5 516.6,223.6 543.2,223.1 569.8,223.1 596.4,222.7 623.0,224.0 649.7,223.6 676.3,224.0 702.9,224.0 729.5,223.6 756.1,224.0 782.8,52.8 809.4,187.9 836.0,217.0" fill="none" stroke="#10b981" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>
   
-    <text x="64.0" y="242" text-anchor="middle" font-size="11" class="lbl">Jul 30</text>
-    <text x="197.1" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 4</text>
-    <text x="330.2" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 9</text>
-    <text x="463.3" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 14</text>
-    <text x="596.4" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 19</text>
-    <text x="729.5" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 24</text>
-    <text x="836.0" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 28</text>
+    <text x="64.0" y="242" text-anchor="middle" font-size="11" class="lbl">Jul 31</text>
+    <text x="197.1" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 5</text>
+    <text x="330.2" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 10</text>
+    <text x="463.3" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 15</text>
+    <text x="596.4" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 20</text>
+    <text x="729.5" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 25</text>
+    <text x="836.0" y="242" text-anchor="middle" font-size="11" class="lbl">Aug 29</text>
   
-    <circle cx="836.0" cy="191.4" r="4" fill="#6366f1" class="dot" stroke-width="2"><title>74 downloads</title></circle>
-    <circle cx="836.0" cy="187.9" r="4" fill="#10b981" class="dot" stroke-width="2"><title>82 downloads</title></circle>
+    <circle cx="836.0" cy="217.4" r="4" fill="#6366f1" class="dot" stroke-width="2"><title>15 downloads</title></circle>
+    <circle cx="836.0" cy="217.0" r="4" fill="#10b981" class="dot" stroke-width="2"><title>16 downloads</title></circle>
   
     <rect x="64" y="12" width="12" height="12" rx="3" fill="#6366f1"/>
     <text x="82" y="22" font-size="13" class="legend" font-weight="600">@way_marks/cli</text>
-    <text x="82" y="36" font-size="11" class="lbl">688 last 30 days</text>
+    <text x="82" y="36" font-size="11" class="lbl">702 last 30 days</text>
     <rect x="284" y="12" width="12" height="12" rx="3" fill="#10b981"/>
     <text x="302" y="22" font-size="13" class="legend" font-weight="600">@way_marks/server</text>
-    <text x="302" y="36" font-size="11" class="lbl">744 last 30 days</text>
-  <text x="836" y="272" text-anchor="end" font-size="10" class="foot">Updated 2026-08-30</text>
+    <text x="302" y="36" font-size="11" class="lbl">757 last 30 days</text>
+  <text x="836" y="272" text-anchor="end" font-size="10" class="foot">Updated 2026-09-06</text>
   <line x1="64" y1="48" x2="64" y2="224" class="axis" stroke-width="1"/>
   <line x1="64" y1="224" x2="836" y2="224" class="axis" stroke-width="1"/>
 </svg>
